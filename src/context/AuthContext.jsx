@@ -42,12 +42,13 @@ export function AuthProvider({ children }) {
                     }
                 } catch (error) {
                     console.error("Error fetching user role:", error);
+                    setUserRole('error');
                 }
                 setCurrentUser(user);
             } else {
                 setCurrentUser(null);
                 setUserRole(null);
-                setSelectedStylist(null);
+                // We DON'T clear selectedStylist here so the kiosk remembers the last stylus even if session expires
             }
             setLoading(false);
         });
@@ -73,14 +74,40 @@ export function AuthProvider({ children }) {
         selectedStylist,
         selectStylist,
         logout: () => {
-            localStorage.removeItem('sota_selected_stylist');
+            // We DON'T remove selectedStylist on logout per user preference for high persistence
             signOut(auth);
         }
     };
 
     return (
         <AuthContext.Provider value={value}>
-            {!loading && children}
+            {loading ? (
+                <div style={{
+                    height: '100vh',
+                    width: '100vw',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: 'var(--bg-primary)',
+                    gap: '1.5rem',
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    zIndex: 10000
+                }}>
+                    <div className="spinner"></div>
+                    <div style={{
+                        fontSize: '0.75rem',
+                        letterSpacing: '0.3em',
+                        color: 'var(--text-secondary)',
+                        fontWeight: '700',
+                        textTransform: 'uppercase'
+                    }}>
+                        Syncing Studio...
+                    </div>
+                </div>
+            ) : children}
         </AuthContext.Provider>
     );
 }

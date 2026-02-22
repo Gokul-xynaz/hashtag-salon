@@ -5,9 +5,11 @@ import StylistDashboard from './StylistDashboard';
 export default function Dashboard() {
     const { userRole } = useAuth();
 
-    if (userRole === 'admin') {
+    const normalizedRole = userRole?.toLowerCase();
+
+    if (normalizedRole === 'admin') {
         return <AdminDashboard />;
-    } else if (userRole === 'stylist') {
+    } else if (normalizedRole === 'stylist') {
         return <StylistDashboard />;
     } else {
         return <div className="container">Loading user profile...</div>;

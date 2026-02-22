@@ -45,7 +45,8 @@
 
 body {
   font-family: var(--font-main);
-  background-color: var(--bg-primary);
+  background: linear-gradient(135deg, #fcfcfc 0%, #f0f4f8 100%);
+  background-attachment: fixed;
   color: var(--text-primary);
   line-height: 1.6;
   min-height: 100vh;
@@ -104,17 +105,21 @@ button {
 }
 
 .card {
-  background: var(--bg-card);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   padding: 2rem;
   border-radius: var(--radius-md);
-  border: 1px solid var(--border-color);
-  box-shadow: var(--shadow-sm);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
   margin-bottom: 1.5rem;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.4s ease;
 }
 
 .card:hover {
-  box-shadow: var(--shadow-md);
+  transform: translateY(-4px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
+  border-color: rgba(0, 0, 0, 0.08);
 }
 
 /* Premium Buttons */
@@ -255,4 +260,153 @@ td {
 
 .animate-fade-in {
   animation: fadeIn 0.4s ease-out forwards;
+}
+
+/* --- Mobile Responsiveness --- */
+
+/* Utility classes for responsive grid layouts */
+.responsive-grid-2col {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 3rem;
+  margin-top: 3rem;
+}
+
+.responsive-grid-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 1rem;
+}
+
+.responsive-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4rem;
+  position: relative;
+}
+
+.responsive-header-actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.responsive-stats-grid {
+  display: flex;
+  gap: 2rem;
+  justify-content: center;
+  width: 100%;
+}
+
+@media (max-width: 900px) {
+  .responsive-grid-2col {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .responsive-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+  }
+
+  .responsive-header-actions {
+    flex-wrap: wrap;
+    justify-content: stretch;
+  }
+
+  .responsive-header-actions button {
+    flex: 1;
+    min-width: 120px;
+  }
+
+  .responsive-grid-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .card {
+    padding: 1.5rem;
+  }
+
+  .responsive-stats-grid {
+    flex-direction: column;
+    gap: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  h1 {
+    font-size: 1.25rem !important;
+    text-align: center;
+  }
+
+  .responsive-grid-cards {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- Premium Glowing Border Animation --- */
+.glow-border-button {
+  position: relative;
+  overflow: hidden;
+  background: transparent !important;
+  z-index: 1;
+  border: none !important;
+}
+
+/* Traveling light ring */
+.glow-border-button::before {
+  content: '';
+  position: absolute;
+  top: -100%;
+  left: -100%;
+  width: 300%;
+  height: 300%;
+  background: conic-gradient(from 0deg,
+      transparent 20%,
+      rgba(147, 197, 253, 0.5) 50%,
+      transparent 80%);
+  animation: rotateGlow 8s linear infinite;
+  z-index: -2;
+}
+
+/* Mask for border effect - inset controls thickness */
+.glow-border-button::after {
+  content: '';
+  position: absolute;
+  inset: 2.5px;
+  background: #ffffff;
+  border-radius: inherit;
+  z-index: -1;
+  transition: background 0.3s ease;
+}
+
+.glow-border-button[data-open="true"]::after {
+  background: #f8fafc;
+}
+
+.glow-border-button:hover::before {
+  animation-duration: 3s;
+  background: conic-gradient(from 0deg,
+      transparent 15%,
+      rgba(37, 99, 235, 0.6) 50%,
+      transparent 85%);
+}
+
+.glow-border-button:hover {
+  box-shadow: 0 0 35px rgba(37, 99, 235, 0.1);
+}
+
+@keyframes rotateGlow {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }

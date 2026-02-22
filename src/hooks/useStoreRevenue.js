@@ -4,6 +4,8 @@ import { db } from '../services/firebase';
 
 export function useStoreRevenue(stylistId = null, isGlobal = false) {
     const [storeTotal, setStoreTotal] = useState(0);
+    const [cashTotal, setCashTotal] = useState(0);
+    const [cardTotal, setCardTotal] = useState(0);
     const [expensesTotal, setExpensesTotal] = useState(0);
     const [netProfit, setNetProfit] = useState(0);
     const [averageBill, setAverageBill] = useState(0);
@@ -29,7 +31,7 @@ export function useStoreRevenue(stylistId = null, isGlobal = false) {
                 where('timestamp', '>=', today)
             );
         } else {
-            setStoreTotal(0); setExpensesTotal(0); setNetProfit(0); setAverageBill(0); setBillCount(0);
+            setStoreTotal(0); setCashTotal(0); setCardTotal(0); setExpensesTotal(0); setNetProfit(0); setAverageBill(0); setBillCount(0);
             setLoading(false);
             return;
         }
@@ -37,13 +39,25 @@ export function useStoreRevenue(stylistId = null, isGlobal = false) {
         // 1. Listen for Revenue Changes
         const unsubRevenue = onSnapshot(revenueQuery, (snapshot) => {
             let total = 0;
+            let cash = 0;
+            let card = 0;
             let count = 0;
             snapshot.forEach(doc => {
                 const data = doc.data();
-                total += (data.totalAmount || 0);
+                const amount = (data.totalAmount || 0);
+                total += amount;
+
+                if (data.paymentType === 'cash') {
+                    cash += amount;
+                } else if (data.paymentType === 'card') {
+                    card += amount;
+                }
+
                 count++;
             });
             setStoreTotal(total);
+            setCashTotal(cash);
+            setCardTotal(card);
             setBillCount(count);
             setAverageBill(count > 0 ? total / count : 0);
             setLoading(false);
@@ -61,11 +75,18 @@ export function useStoreRevenue(stylistId = null, isGlobal = false) {
             );
             unsubExpenses = onSnapshot(expensesQuery, (snapshot) => {
                 let total = 0;
+                let cashExp = 0;
+                let cardExp = 0;
                 snapshot.forEach(doc => {
                     const data = doc.data();
-                    total += parseFloat(data.amount || 0);
+                    const amt = parseFloat(data.amount || 0);
+                    total += amt;
+                    if (data.method === 'cash') cashExp += amt;
+                    if (data.method === 'card') cardExp += amt;
                 });
                 setExpensesTotal(total);
+                setCashExpenses(cashExp); // New state to hold cash expenses temporarily
+                setCardExpenses(cardExp); // New state to hold card expenses temporarily
             });
         }
 
@@ -75,9 +96,18 @@ export function useStoreRevenue(stylistId = null, isGlobal = false) {
         };
     }, [stylistId, isGlobal]);
 
-    useEffect(() => {
-        setNetProfit(storeTotal - expensesTotal);
-    }, [storeTotal, expensesTotal]);
+    const [cashExpenses, setCashExpenses] = useState(0);
+    const [cardExpenses, setCardExpenses] = useState(0);
 
-    return { storeTotal, expensesTotal, netProfit, averageBill, billCount, loading };
+    // Derived states based on raw revenue and categorized expenses
+    const [finalCashTotal, setFinalCashTotal] = useState(0);
+    const [finalCardTotal, setFinalCardTotal] = useState(0);
+
+    useEffect(() => {
+        setFinalCashTotal(cashTotal - cashExpenses);
+        setFinalCardTotal(cardTotal - cardExpenses);
+        setNetProfit(storeTotal - expensesTotal);
+    }, [storeTotal, cashTotal, cardTotal, expensesTotal, cashExpenses, cardExpenses]);
+
+    return { storeTotal, cashTotal: finalCashTotal, cardTotal: finalCardTotal, expensesTotal, netProfit, averageBill, billCount, loading };
 }

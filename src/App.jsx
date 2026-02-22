@@ -11,7 +11,10 @@ import DatabaseSeeder from './components/admin/DatabaseSeeder';
 import TeamManager from './components/admin/TeamManager';
 import Reports from './components/admin/Reports';
 import AdminSettings from './components/admin/AdminSettings';
+import InventoryManager from './components/admin/InventoryManager';
 import NewBooking from './pages/NewBooking';
+import CustomerManager from './components/admin/CustomerManager';
+import AttendanceView from './pages/AttendanceView';
 import ButtonBack from './components/common/ButtonBack';
 import './App.css';
 // index.css handles global styles
@@ -82,6 +85,39 @@ function App() {
                     <ButtonBack />
                   </div>
                   <AdminSettings />
+                </AdminLayout>
+              </ProtectedRoute>
+            } />
+
+            <Route path="/admin/inventory" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AdminLayout>
+                  <div style={{ marginBottom: '2rem' }}>
+                    <ButtonBack />
+                  </div>
+                  <InventoryManager />
+                </AdminLayout>
+              </ProtectedRoute>
+            } />
+
+            <Route path="/admin/attendance" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AdminLayout>
+                  <div style={{ marginBottom: '2rem' }}>
+                    <ButtonBack />
+                  </div>
+                  <AttendanceView />
+                </AdminLayout>
+              </ProtectedRoute>
+            } />
+
+            <Route path="/admin/customers" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AdminLayout>
+                  <div style={{ marginBottom: '2rem' }}>
+                    <ButtonBack />
+                  </div>
+                  <CustomerManager />
                 </AdminLayout>
               </ProtectedRoute>
             } />

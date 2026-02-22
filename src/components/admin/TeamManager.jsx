@@ -82,10 +82,13 @@ export default function TeamManager() {
         setCreating(true);
         try {
             const id = newStylist.email.replace(/[.@]/g, '_') + '_' + Date.now();
+            const shortCode = newStylist.name.slice(0, 3).toUpperCase();
+
             await setDoc(doc(db, 'users', id), {
                 name: newStylist.name,
                 email: newStylist.email,
                 role: 'stylist',
+                shortCode,
                 allowedServices: [],
                 createdAt: Timestamp.now()
             });
@@ -144,6 +147,7 @@ export default function TeamManager() {
                         <thead>
                             <tr style={{ textAlign: 'left', borderBottom: '2px solid var(--text-primary)' }}>
                                 <th style={{ padding: '1rem', fontSize: '0.7rem', letterSpacing: '0.15em' }}>NAME & IDENTITY</th>
+                                <th style={{ padding: '1rem', fontSize: '0.7rem', letterSpacing: '0.15em' }}>REFERRAL ID</th>
                                 <th style={{ padding: '1rem', fontSize: '0.7rem', letterSpacing: '0.15em' }}>ACCESS ROLE</th>
                                 <th style={{ padding: '1rem', textAlign: 'right', fontSize: '0.7rem', letterSpacing: '0.15em' }}>COMMANDS</th>
                             </tr>
@@ -154,6 +158,19 @@ export default function TeamManager() {
                                     <td style={{ padding: '1.5rem 1rem' }}>
                                         <div style={{ fontWeight: '800', fontSize: '1.1rem' }}>{user.name || 'Unknown'}</div>
                                         <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', letterSpacing: '0.05em' }}>{(user.email || '').toUpperCase()}</div>
+                                    </td>
+                                    <td style={{ padding: '1.5rem 1rem' }}>
+                                        <div style={{
+                                            fontSize: '0.85rem',
+                                            fontWeight: '900',
+                                            color: user.shortCode ? 'var(--primary)' : 'var(--text-secondary)',
+                                            background: user.shortCode ? 'rgba(0,0,0,0.05)' : 'transparent',
+                                            padding: '0.4rem 0.8rem',
+                                            display: 'inline-block',
+                                            borderRadius: 'var(--radius-sm)'
+                                        }}>
+                                            {user.shortCode || 'UNSYNCED'}
+                                        </div>
                                     </td>
                                     <td style={{ padding: '1.5rem 1rem' }}>
                                         <span style={{ fontSize: '0.7rem', padding: '0.4rem 0.8rem', background: (user.role || 'stylist') === 'admin' ? 'black' : 'var(--bg-secondary)', color: (user.role || 'stylist') === 'admin' ? 'white' : 'var(--text-primary)', borderRadius: 'var(--radius-sm)', fontWeight: '800' }}>
