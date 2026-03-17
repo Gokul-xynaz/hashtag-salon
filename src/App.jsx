@@ -7,7 +7,6 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import ServiceManager from './components/admin/ServiceManager';
 import ExpenseTracker from './components/admin/ExpenseTracker';
-import DatabaseSeeder from './components/admin/DatabaseSeeder';
 import TeamManager from './components/admin/TeamManager';
 import Reports from './components/admin/Reports';
 import AdminSettings from './components/admin/AdminSettings';
@@ -25,7 +24,6 @@ function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
-            <Route path="/seed" element={<DatabaseSeeder />} />
 
             <Route path="/" element={
               <ProtectedRoute>

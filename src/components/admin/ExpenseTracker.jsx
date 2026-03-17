@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import { addExpense } from '../../services/db';
 import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { db } from '../../services/firebase';
+import { useAuth } from '../../context/AuthContext';
 
 export default function ExpenseTracker() {
+    const { currentUser } = useAuth();
     const [amount, setAmount] = useState('');
     const [description, setDescription] = useState('');
     const [method, setMethod] = useState('cash');
@@ -39,7 +41,8 @@ export default function ExpenseTracker() {
             await addExpense({
                 amount: parseFloat(amount),
                 description,
-                method // Added categorization
+                method,
+                loggedBy: currentUser?.email || 'Unknown Admin'
             });
             setAmount('');
             setDescription('');
@@ -138,9 +141,14 @@ export default function ExpenseTracker() {
                             }}>
                                 <div>
                                     <div style={{ fontWeight: '800', fontSize: '0.95rem' }}>{exp.description}</div>
-                                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.25rem', display: 'flex', gap: '1rem' }}>
-                                        <span>{exp.date ? exp.date.toDate().toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : 'N/A'}</span>
-                                        <span style={{ fontWeight: '700', color: exp.method === 'cash' ? '#f59e0b' : '#3b82f6' }}>{exp.method?.toUpperCase()}</span>
+                                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.25rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                        <div style={{ display: 'flex', gap: '1rem' }}>
+                                            <span>{exp.date ? exp.date.toDate().toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : 'N/A'}</span>
+                                            <span style={{ fontWeight: '700', color: exp.method === 'cash' ? '#f59e0b' : '#3b82f6' }}>{exp.method?.toUpperCase()}</span>
+                                        </div>
+                                        <div style={{ fontWeight: '600' }}>
+                                            Logged By: <span style={{ color: 'var(--text-primary)' }}>{exp.loggedBy || 'System'}</span>
+                                        </div>
                                     </div>
                                 </div>
                                 <div style={{ fontWeight: '900', color: 'var(--danger)', fontSize: '1.2rem' }}>

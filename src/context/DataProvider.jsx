@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { collection, onSnapshot, query, where, doc, getDocs, limit, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, doc, limit } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { useAuth } from './AuthContext';
 
@@ -14,8 +14,6 @@ export function DataProvider({ children }) {
     const [loadingSettings, setLoadingSettings] = useState(true);
     const [ongoingSessions, setOngoingSessions] = useState([]);
     const [loadingSessions, setLoadingSessions] = useState(true);
-    const [attendance, setAttendance] = useState([]);
-    const [loadingAttendance, setLoadingAttendance] = useState(true);
     const [customers, setCustomers] = useState([]);
     const [loadingCustomers, setLoadingCustomers] = useState(true);
     const [products, setProducts] = useState([]);
@@ -33,10 +31,10 @@ export function DataProvider({ children }) {
             setLoadingSettings(false);
             setOngoingSessions([]);
             setLoadingSessions(false);
-            setAttendance([]);
-            setLoadingAttendance(false);
             setCustomers([]);
             setLoadingCustomers(false);
+            setProducts([]);
+            setLoadingProducts(false);
             return;
         }
 
@@ -84,19 +82,7 @@ export function DataProvider({ children }) {
             setLoadingSessions(false);
         });
 
-        // 5. Attendance (Today's Status)
-        const today = new Date().toLocaleDateString('en-CA');
-        const qAttendance = query(collection(db, 'attendance'), where('date', '==', today));
-        const unsubAttendance = onSnapshot(qAttendance, (snapshot) => {
-            const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            setAttendance(list);
-            setLoadingAttendance(false);
-        }, (err) => {
-            console.error("Attendance stream error:", err);
-            setLoadingAttendance(false);
-        });
-
-        // 6. Real-time Customers (Limited to 500 for performance)
+        // 5. Real-time Customers (Limited to 500 for performance)
         const qCustomers = query(collection(db, 'customers'), limit(500));
         const unsubCustomers = onSnapshot(qCustomers, (snapshot) => {
             const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -107,7 +93,7 @@ export function DataProvider({ children }) {
             setLoadingCustomers(false);
         });
 
-        // 7. Real-time Products
+        // 6. Real-time Products
         const unsubProducts = onSnapshot(collection(db, 'products'), (snapshot) => {
             const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             setProducts(list);
@@ -122,7 +108,6 @@ export function DataProvider({ children }) {
             unsubStylists();
             unsubSettings();
             unsubSessions();
-            unsubAttendance();
             unsubCustomers();
             unsubProducts();
         };
@@ -153,14 +138,12 @@ export function DataProvider({ children }) {
             trialDaysRemaining,
             ongoingSessions,
             loadingSessions,
-            attendance,
-            loadingAttendance,
             customers,
             loadingCustomers,
             products,
             loadingProducts
         };
-    }, [services, loadingServices, stylists, loadingStylists, settings, loadingSettings, ongoingSessions, loadingSessions, attendance, loadingAttendance, customers, loadingCustomers, products, loadingProducts]);
+    }, [services, loadingServices, stylists, loadingStylists, settings, loadingSettings, ongoingSessions, loadingSessions, customers, loadingCustomers, products, loadingProducts]);
 
     return (
         <DataContext.Provider value={value}>

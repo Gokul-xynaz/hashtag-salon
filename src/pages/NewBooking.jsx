@@ -1229,8 +1229,19 @@ export default function NewBooking() {
                             <p style={{ margin: '0.4rem auto', fontSize: '0.7rem', lineHeight: '1.4', maxWidth: '250px' }}>
                                 376, 3A1, Rabindranath Tagore Rd, Maniyakarampalayam, Manikarampalayam, Ganapathy, Coimbatore, Tamil Nadu 641006
                             </p>
-                            <p style={{ margin: '0.4rem 0 0', fontSize: '0.8rem', fontWeight: '800' }}>Ph: +91 9629180431</p>
-                            <p style={{ margin: '0.1rem 0 0', fontSize: '0.8rem', fontWeight: '800' }}>GSTIN: 33ABCDE1234F1Z5</p>
+                            <p style={{ margin: '0.4rem 0 0', fontSize: '0.8rem', fontWeight: '800' }}>Ph: +91 9952618995</p>
+                            <p style={{ margin: '0.1rem 0 0', fontSize: '0.8rem', fontWeight: '800' }}>GSTIN: 33DLWPM2263M1ZG</p>
+                            <div style={{ marginTop: '0.5rem' }}>
+                                <a
+                                    href="https://www.instagram.com/hashtagfamilysalon?igsh=MzZ4aXAyMjZydmln"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    style={{ textDecoration: 'none', color: 'black', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', fontSize: '0.75rem', fontWeight: '800' }}
+                                >
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
+                                    Hashtag salon
+                                </a>
+                            </div>
                         </div>
 
                         <div style={{ padding: '0 0.5rem', marginBottom: '1rem', fontSize: '0.8rem', lineHeight: '1.6' }}>

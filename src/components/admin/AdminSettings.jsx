@@ -6,8 +6,6 @@ import { useData } from '../../context/DataProvider';
 export default function AdminSettings() {
     const { settings } = useData();
     const [maxDiscount, setMaxDiscount] = useState(50);
-    const [shiftStartTime, setShiftStartTime] = useState('10:00');
-    const [gracePeriod, setGracePeriod] = useState(15);
     const [referralDiscountAmount, setReferralDiscountAmount] = useState(100);
     const [loyaltyPointRatio, setLoyaltyPointRatio] = useState(100);
     const [loyaltyRedemptionEnabled, setLoyaltyRedemptionEnabled] = useState(true);
@@ -18,8 +16,6 @@ export default function AdminSettings() {
     useEffect(() => {
         if (settings) {
             setMaxDiscount(settings.maxDiscount || 50);
-            setShiftStartTime(settings.shiftStartTime || '10:00');
-            setGracePeriod(settings.gracePeriod || 15);
             setReferralDiscountAmount(settings.referralDiscountAmount || 100);
             setLoyaltyPointRatio(settings.loyaltyPointRatio || 100);
             setLoyaltyRedemptionEnabled(settings.loyaltyRedemptionEnabled !== false);
@@ -34,8 +30,6 @@ export default function AdminSettings() {
         try {
             await setDoc(doc(db, 'settings', 'salon_config'), {
                 maxDiscount: parseInt(maxDiscount),
-                shiftStartTime,
-                gracePeriod: parseInt(gracePeriod),
                 referralDiscountAmount: parseInt(referralDiscountAmount),
                 loyaltyPointRatio: parseInt(loyaltyPointRatio),
                 loyaltyRedemptionEnabled,
@@ -165,45 +159,6 @@ export default function AdminSettings() {
                             </div>
                         </div>
                     )}
-                </div>
-
-                <div style={{ marginBottom: '2.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1.5rem', marginTop: '3rem' }}>
-                    <h3 style={{ margin: 0, fontSize: '1.2rem', letterSpacing: '0.1em' }}>ATTENDANCE & SHIFT POLICY</h3>
-                </div>
-
-                <div className="form-group" style={{ marginBottom: '2rem' }}>
-                    <label className="form-label" style={{ display: 'block', marginBottom: '0.5rem' }}>SHIFT START TIME</label>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-                        The time when a stylist is expected to be at the salon. Punches after this (plus grace period) will be marked as "LATE".
-                    </p>
-                    <input
-                        type="time"
-                        className="form-input"
-                        style={{ width: '150px' }}
-                        value={shiftStartTime}
-                        onChange={(e) => setShiftStartTime(e.target.value)}
-                        required
-                    />
-                </div>
-
-                <div className="form-group" style={{ marginBottom: '2rem' }}>
-                    <label className="form-label" style={{ display: 'block', marginBottom: '0.5rem' }}>GRACE PERIOD (MINUTES)</label>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-                        Extra minutes allowed after Shift Start Time before marking as "LATE".
-                    </p>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                        <input
-                            type="number"
-                            className="form-input"
-                            style={{ width: '100px', textAlign: 'center' }}
-                            value={gracePeriod}
-                            onChange={(e) => setGracePeriod(e.target.value)}
-                            min="0"
-                            max="60"
-                            required
-                        />
-                        <span style={{ fontWeight: '800' }}>MINUTES</span>
-                    </div>
                 </div>
 
                 <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '2rem' }}>
