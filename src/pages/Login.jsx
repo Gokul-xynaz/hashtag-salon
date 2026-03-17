@@ -40,7 +40,7 @@ export default function Login() {
         }}>
             <div className="animate-fade-in" style={{ width: '100%', maxWidth: '440px' }}>
                 <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
-                    <h1 style={{ fontSize: '3.5rem', letterSpacing: '0.4em', fontWeight: '900', margin: 0 }}>JX Saloon</h1>
+                    <h1 style={{ fontSize: '3.5rem', letterSpacing: '0.4em', fontWeight: '900', margin: 0 }}>HASHTAG SALON</h1>
                     <div style={{ width: '40px', height: '2px', background: 'black', margin: '1rem auto' }}></div>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.2em' }}>Professional Billing Solution</p>
                 </div>
@@ -57,7 +57,7 @@ export default function Login() {
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 required
-                                placeholder="name@jxsaloon.com"
+                                placeholder="name@hashtagsalon.com"
                                 style={{ height: '3.5rem' }}
                             />
                         </div>
@@ -80,7 +80,7 @@ export default function Login() {
                 </div>
 
                 <p style={{ textAlign: 'center', marginTop: '2rem', fontSize: '0.7rem', color: 'var(--text-secondary)', letterSpacing: '0.05em' }}>
-                    &copy; {new Date().getFullYear()} JX Saloon. ALL RIGHTS RESERVED.
+                    &copy; {new Date().getFullYear()} HASHTAG SALON. ALL RIGHTS RESERVED.
                 </p>
             </div>
         </div>

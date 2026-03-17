@@ -36,20 +36,19 @@ export default function DatabaseSeeder() {
         try {
             // 1. Try to create the Auth account
             try {
-                const creds = await createUserWithEmailAndPassword(auth, 'jxsaloon@store.com', 'stylist123');
+                const creds = await createUserWithEmailAndPassword(auth, 'contact@hashtagsaloon.com', 'stylist123');
                 // 2. Create Firestore profile
                 await setDoc(doc(db, 'users', creds.user.uid), {
-                    email: 'jxsaloon@store.com',
+                    email: 'contact@hashtagsaloon.com',
                     role: 'stylist',
                     name: 'Kiosk Stylist',
                     isKiosk: true,
                     createdAt: new Date()
                 });
-                setStatus('Success! Shared account jxsaloon@store.com created.');
+                setStatus('Success! Shared account created.');
             } catch (authError) {
                 if (authError.code === 'auth/email-already-in-use') {
-                    setStatus('Shared account already exists in Auth. Check firestore...');
-                    // Maybe just update firestore? We'd need to log in first or have rights.
+                    setStatus('Shared account exists in Auth. If you are logged in as contact@hashtagsaloon.com, use Step 3 to create your profile document.');
                 } else {
                     throw authError;
                 }
@@ -95,7 +94,7 @@ export default function DatabaseSeeder() {
 
                 <div style={{ marginBottom: '2rem', paddingBottom: '2rem', borderBottom: '1px solid var(--border-color)' }}>
                     <h4>Step 2: Setup Shared Stylist Account</h4>
-                    <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>This creates the 'jxsaloon@store.com' account needed for Kiosk Mode.</p>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>This creates the 'contact@hashtagsaloon.com' account needed for Kiosk Mode.</p>
                     <button className="btn-primary" onClick={setupSharedAccount} disabled={loading} style={{ background: 'var(--success)', borderColor: 'var(--success)' }}>
                         {loading ? 'Processing...' : 'Setup Shared Account'}
                     </button>

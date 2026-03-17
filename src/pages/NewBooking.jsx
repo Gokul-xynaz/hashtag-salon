@@ -28,6 +28,7 @@ export default function NewBooking() {
     const [billingDate, setBillingDate] = useState(new Date().toISOString().split('T')[0]);
     const [loading, setLoading] = useState(false);
     const [isLoaded, setIsLoaded] = useState(false);
+    const [completedBill, setCompletedBill] = useState(null);
 
     const [showCustomModal, setShowCustomModal] = useState(false);
     const [customService, setCustomService] = useState({ name: '', price: '' });
@@ -166,7 +167,7 @@ export default function NewBooking() {
 
     // 2. Session Auto-Save: Sync local state to Firestore
     useEffect(() => {
-        if (!selectedStylist || !isLoaded || (step === 1 && !client.phone)) return;
+        if (!selectedStylist || !isLoaded || (step === 1 && !client.phone) || step === 5) return;
 
         const saveSession = async () => {
             try {
@@ -313,30 +314,30 @@ export default function NewBooking() {
         ));
     };
 
-    const calculateTotal = useMemo(() => {
-        const servicesTotal = selectedServices.reduce((sum, s) => {
-            const discountedPrice = s.price - (s.price * (s.discount / 100));
-            return sum + discountedPrice;
-        }, 0);
+    const serviceSubtotal = useMemo(() => {
+        return selectedServices.reduce((sum, s) => sum + (s.price - (s.price * (s.discount / 100))), 0);
+    }, [selectedServices]);
 
-        const retailTotal = selectedRetail.reduce((sum, p) => sum + (p.price * p.qty), 0);
+    const serviceTax = useMemo(() => {
+        return serviceSubtotal * 0.05;
+    }, [serviceSubtotal]);
 
-        const loyaltyDiscount = redeemPoints ? (pointsApplied / (settings?.pointsToInrRate || 10)) : 0;
-        return Math.max(0, servicesTotal + retailTotal - loyaltyDiscount);
-    }, [selectedServices, selectedRetail, redeemPoints, pointsApplied, settings]);
-
-    const calculateServiceTotal = useMemo(() => {
-        const servicesTotal = selectedServices.reduce((sum, s) => {
-            const discountedPrice = s.price - (s.price * (s.discount / 100));
-            return sum + discountedPrice;
-        }, 0);
-        const loyaltyDiscount = redeemPoints ? (pointsApplied / (settings?.pointsToInrRate || 10)) : 0;
-        return Math.max(0, servicesTotal - loyaltyDiscount);
-    }, [selectedServices, redeemPoints, pointsApplied, settings]);
-
-    const calculateRetailTotal = useMemo(() => {
+    const retailSubtotal = useMemo(() => {
         return selectedRetail.reduce((sum, p) => sum + (p.price * p.qty), 0);
     }, [selectedRetail]);
+
+    const retailTax = useMemo(() => {
+        return retailSubtotal * 0.18;
+    }, [retailSubtotal]);
+
+    const calculateTotal = useMemo(() => {
+        const loyaltyDiscount = redeemPoints ? (pointsApplied / (settings?.pointsToInrRate || 10)) : 0;
+        return Math.max(0, serviceSubtotal + serviceTax + retailSubtotal + retailTax - loyaltyDiscount);
+    }, [serviceSubtotal, serviceTax, retailSubtotal, retailTax, redeemPoints, pointsApplied, settings]);
+
+    // Keep the old hooks for API compatibility but update to include tax or we just inline everything in handleCheckout.
+    const calculateServiceTotal = serviceSubtotal;
+    const calculateRetailTotal = retailSubtotal;
 
     const handleCheckout = async () => {
         if (selectedServices.length === 0) return;
@@ -391,8 +392,11 @@ export default function NewBooking() {
                 clientPhone: client.phone,
                 services: selectedServices,
                 retailItems: selectedRetail, // Phase 9: Log retail items
-                serviceRevenue: serviceAmount, // Split for reporting
-                retailRevenue: retailAmount,   // Split for reporting
+                serviceRevenue: serviceSubtotal, // Split for reporting
+                serviceTax: serviceTax,
+                retailRevenue: retailSubtotal,   // Split for reporting
+                retailTax: retailTax,
+                subtotal: serviceSubtotal + retailSubtotal,
                 totalAmount: finalAmount,
                 durationSeconds: seconds,
                 durationMinutes: Math.ceil(seconds / 60),
@@ -515,9 +519,8 @@ export default function NewBooking() {
                 console.warn("Session cleanup failed:", cleanupErr);
             }
 
-            alert('Booking Completed!');
-            selectStylist(null);
-            navigate('/');
+            setCompletedBill(visitData);
+            setStep(5); // Show Receipt Step
         } catch (error) {
             console.error("Booking failed:", error);
             alert(error.message || 'Error processing booking.');
@@ -1086,6 +1089,30 @@ export default function NewBooking() {
                                 })()
                             )}
 
+                            {/* Summary Details */}
+                            <div style={{ padding: '1rem', background: '#f8fafc', borderRadius: 'var(--radius-sm)', marginBottom: '1rem' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.8rem' }}>
+                                    <span style={{ color: 'var(--text-secondary)' }}>Service Subtotal</span>
+                                    <span style={{ fontWeight: '700' }}>{formatCurrency(serviceSubtotal)}</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.8rem' }}>
+                                    <span style={{ color: 'var(--text-secondary)' }}>Service GST (5%)</span>
+                                    <span style={{ fontWeight: '700' }}>{formatCurrency(serviceTax)}</span>
+                                </div>
+                                {retailSubtotal > 0 && (
+                                    <>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.8rem', borderTop: '1px dashed var(--border-color)', paddingTop: '0.5rem' }}>
+                                            <span style={{ color: 'var(--text-secondary)' }}>Retail Subtotal</span>
+                                            <span style={{ fontWeight: '700' }}>{formatCurrency(retailSubtotal)}</span>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.8rem' }}>
+                                            <span style={{ color: 'var(--text-secondary)' }}>Retail GST (18%)</span>
+                                            <span style={{ fontWeight: '700' }}>{formatCurrency(retailTax)}</span>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                                 <span style={{ fontWeight: '800', fontSize: '0.75rem' }}>TOTAL PAYABLE</span>
                                 <span style={{ color: 'var(--text-accent)', fontSize: '2rem', fontWeight: '900' }}>{formatCurrency(calculateTotal)}</span>
@@ -1182,6 +1209,99 @@ export default function NewBooking() {
                         <button className="btn-secondary" style={{ flex: 1 }} onClick={() => setStep(3)}>Back</button>
                         <button className="btn-primary" style={{ flex: 2, height: '4rem' }} onClick={handleCheckout} disabled={loading}>
                             {loading ? 'Completing...' : `CONFIRM & CLOSE`}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Step 5: Receipt Modal */}
+            {step === 5 && completedBill && (
+                <div className="card animate-scale-in" style={{ padding: '2rem', textAlign: 'center' }}>
+                    <div style={{ color: 'var(--success)', fontSize: '3rem', marginBottom: '1rem' }}>✓</div>
+                    <h2>Checkout Complete</h2>
+                    <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>The transaction has been successfully logged.</p>
+
+                    {/* Printable Receipt Area */}
+                    <div id="receipt-print-area" style={{ textAlign: 'left', padding: '2rem', background: 'white', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', marginBottom: '2rem', fontFamily: 'monospace', fontSize: '0.85rem' }}>
+                        <div style={{ textAlign: 'center', marginBottom: '1rem', borderBottom: '1px dashed black', paddingBottom: '1rem' }}>
+                            <h3 style={{ margin: 0, fontSize: '1.4rem', fontWeight: '900', textTransform: 'uppercase' }}>HASHTAG SALON</h3>
+                            <p style={{ margin: '0.2rem 0', fontSize: '0.8rem', fontWeight: '800' }}>Professional Studio</p>
+                            <p style={{ margin: '0.4rem auto', fontSize: '0.7rem', lineHeight: '1.4', maxWidth: '250px' }}>
+                                376, 3A1, Rabindranath Tagore Rd, Maniyakarampalayam, Manikarampalayam, Ganapathy, Coimbatore, Tamil Nadu 641006
+                            </p>
+                            <p style={{ margin: '0.4rem 0 0', fontSize: '0.8rem', fontWeight: '800' }}>Ph: +91 9629180431</p>
+                            <p style={{ margin: '0.1rem 0 0', fontSize: '0.8rem', fontWeight: '800' }}>GSTIN: 33ABCDE1234F1Z5</p>
+                        </div>
+
+                        <div style={{ padding: '0 0.5rem', marginBottom: '1rem', fontSize: '0.8rem', lineHeight: '1.6' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                <div>
+                                    <div style={{ fontWeight: '900', marginBottom: '0.25rem' }}>BILL TO:</div>
+                                    <div>{completedBill.clientName}</div>
+                                    <div>{completedBill.clientPhone || 'N/A'}</div>
+                                </div>
+                                <div style={{ textAlign: 'right' }}>
+                                    <div style={{ fontWeight: '900', marginBottom: '0.25rem' }}>INVOICE DETAILS:</div>
+                                    <div>{completedBill.timestamp.toDate().toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+                                    <div>Pay Mode: {completedBill.paymentType?.toUpperCase() || 'CASH'}</div>
+                                    <div>Styled By: {completedBill.stylistName}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style={{ borderTop: '2px solid black', borderBottom: '2px solid black', padding: '1rem 0', margin: '1rem 0' }}>
+                            {completedBill.services.map((s, idx) => (
+                                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                                    <span>{s.name}</span>
+                                    <span>{formatCurrency(s.price - (s.price * (s.discount / 100)))}</span>
+                                </div>
+                            ))}
+                            {completedBill.retailItems?.map((r, idx) => (
+                                <div key={`r-${idx}`} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                                    <span>{r.name} x{r.qty}</span>
+                                    <span>{formatCurrency(r.price * r.qty)}</span>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                            <span>Subtotal:</span>
+                            <span>{formatCurrency(completedBill.subtotal)}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                            <span>Service GST (5%):</span>
+                            <span>{formatCurrency(completedBill.serviceTax)}</span>
+                        </div>
+                        {(completedBill.retailTax || 0) > 0 && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                                <span>Retail GST (18%):</span>
+                                <span>{formatCurrency(completedBill.retailTax)}</span>
+                            </div>
+                        )}
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '2px solid black', fontWeight: 'bold', fontSize: '1rem' }}>
+                            <span>TOTAL:</span>
+                            <span>{formatCurrency(completedBill.totalAmount)}</span>
+                        </div>
+
+                        <div style={{ textAlign: 'center', marginTop: '2rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                            <p>Thank you for visiting Hashtag Salon!</p>
+                        </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                        <button className="btn-outline" onClick={() => {
+                            const printContents = document.getElementById('receipt-print-area').innerHTML;
+                            const originalContents = document.body.innerHTML;
+                            document.body.innerHTML = printContents;
+                            window.print();
+                            document.body.innerHTML = originalContents;
+                            window.location.reload(); // Reload to restore React state cleanly after print hack
+                        }}>
+                            PRINT RECEIPT
+                        </button>
+                        <button className="btn-primary" onClick={() => { selectStylist(null); navigate('/'); }}>
+                            DONE
                         </button>
                     </div>
                 </div>

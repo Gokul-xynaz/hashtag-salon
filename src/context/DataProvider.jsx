@@ -55,7 +55,7 @@ export function DataProvider({ children }) {
         const unsubStylists = onSnapshot(qStylists, (snapshot) => {
             const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             // Strict filter to hide technical accounts
-            const filtered = list.filter(u => !u.isKiosk && u.email !== 'jxsaloon@store.com');
+            const filtered = list.filter(u => !u.isKiosk && u.email !== 'contact@hashtagsaloon.com');
             setStylists(filtered);
             setLoadingStylists(false);
         }, (err) => {
@@ -131,7 +131,7 @@ export function DataProvider({ children }) {
     const value = React.useMemo(() => {
         const trialStartedAt = settings?.trialStartedAt?.toDate?.() || null;
         const now = new Date();
-        const trialDuration = 30 * 24 * 60 * 60 * 1000; // 30 Days
+        const trialDuration = 366 * 24 * 60 * 60 * 1000; // 366 Days
 
         let trialDaysRemaining = 0;
         if (trialStartedAt) {

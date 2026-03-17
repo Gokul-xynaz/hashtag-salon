@@ -131,11 +131,11 @@ export default function AiAnalytics({ appointments }) {
                 <div style={{ background: 'rgba(255,255,255,0.1)', padding: '1rem', borderRadius: '50%', marginBottom: '2rem' }}>
                     <span style={{ fontSize: '3rem' }}>🔒</span>
                 </div>
-                <h2 style={{ letterSpacing: '0.2em', fontSize: '1.75rem', marginBottom: '1rem' }}>TRIAL EXPIRED</h2>
-                <div style={{ background: 'var(--danger)', color: 'white', padding: '0.25rem 0.75rem', borderRadius: '4px', fontSize: '0.65rem', fontWeight: '900', letterSpacing: '0.1em', marginBottom: '1.5rem' }}>SUBSCRIPTION REQUIRED</div>
+                <h2 style={{ letterSpacing: '0.2em', fontSize: '1.75rem', marginBottom: '1rem' }}>SUBSCRIPTION EXPIRED</h2>
+                <div style={{ background: 'var(--danger)', color: 'white', padding: '0.25rem 0.75rem', borderRadius: '4px', fontSize: '0.65rem', fontWeight: '900', letterSpacing: '0.1em', marginBottom: '1.5rem' }}>LICENSE REQUIRED</div>
 
                 <p style={{ opacity: 0.8, maxWidth: '500px', margin: '0 auto 3rem', lineHeight: '1.6', fontSize: '0.95rem' }}>
-                    Your 30-day trial for **Growth Analytics** has concluded.
+                    Your 366-day subscription for **Growth Analytics** has concluded.
                     Please contact your developer to activate a permanent license.
                 </p>
 
@@ -177,7 +177,7 @@ export default function AiAnalytics({ appointments }) {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                         <span style={{ fontSize: '1.5rem' }}>⏳</span>
                         <div>
-                            <span style={{ fontWeight: '900', fontSize: '0.85rem', letterSpacing: '0.1em' }}>30-DAY TRIAL ACTIVE</span>
+                            <span style={{ fontWeight: '900', fontSize: '0.85rem', letterSpacing: '0.1em' }}>YEARLY SUBSCRIPTION ACTIVE</span>
                             <p style={{ margin: 0, fontSize: '0.7rem', opacity: 0.8, color: 'white' }}>You have full access to Growth Analytics for the next {trialDaysRemaining} days.</p>
                         </div>
                     </div>
@@ -199,7 +199,7 @@ export default function AiAnalytics({ appointments }) {
                     fontWeight: '900',
                     letterSpacing: '0.1em'
                 }}>
-                    {settings?.isPremiumActive ? 'PREMIUM AI ACTIVE' : 'TRIAL MODE ACTIVE'}
+                    {settings?.isPremiumActive ? 'PREMIUM AI ACTIVE' : 'LOCKED HUB ENABLED'}
                 </div>
             </div>
 

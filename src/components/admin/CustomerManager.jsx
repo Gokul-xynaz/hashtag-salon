@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useData } from '../../context/DataProvider';
-import { collection, doc, setDoc, serverTimestamp, getDoc, deleteDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, serverTimestamp, getDoc, deleteDoc, getDocs, query, where, orderBy, limit } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import CrmSyncUtility from './CrmSyncUtility';
 
@@ -13,6 +13,23 @@ export default function CustomerManager() {
     const [showSync, setShowSync] = useState(false);
     const [showAudit, setShowAudit] = useState(false);
     const [showPremiumModal, setShowPremiumModal] = useState(false);
+    const [selectedCustomer, setSelectedCustomer] = useState(null);
+    const [customerAppointments, setCustomerAppointments] = useState([]);
+    const [loadingAppointments, setLoadingAppointments] = useState(false);
+
+    const handleCustomerClick = async (customer) => {
+        setSelectedCustomer(customer);
+        setLoadingAppointments(true);
+        try {
+            const q = query(collection(db, 'appointments'), where('customerId', '==', customer.id), orderBy('timestamp', 'desc'), limit(20));
+            const snap = await getDocs(q);
+            setCustomerAppointments(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setLoadingAppointments(false);
+        }
+    };
 
     const suspiciousCustomers = customers?.filter(c => {
         const nameLower = (c.name || "").toLowerCase();
@@ -302,7 +319,7 @@ export default function CustomerManager() {
                         </thead>
                         <tbody>
                             {filteredCustomers.map(cust => (
-                                <tr key={cust.phone} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                                <tr key={cust.phone} onClick={() => handleCustomerClick(cust)} style={{ borderBottom: '1px solid var(--border-color)', cursor: 'pointer', transition: 'background 0.15s' }} onMouseOver={e => e.currentTarget.style.background = '#f8fafc'} onMouseOut={e => e.currentTarget.style.background = 'transparent'}>
                                     <td style={{ padding: '1.5rem 1rem' }}>
                                         <div style={{ fontWeight: '800', fontSize: '0.95rem' }}>{cust.name?.toUpperCase()}</div>
                                         <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
@@ -337,6 +354,99 @@ export default function CustomerManager() {
                         </tbody>
                     </table>
                 </div>
+            )}
+
+            {/* Customer Profile Modal */}
+            {selectedCustomer && createPortal(
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999, padding: '1rem' }} onClick={() => setSelectedCustomer(null)}>
+                    <div className="card animate-fade-in" onClick={e => e.stopPropagation()} style={{ maxWidth: '520px', width: '100%', maxHeight: '90vh', overflowY: 'auto', position: 'relative', padding: 0, borderRadius: '20px', boxShadow: '0 25px 60px rgba(0,0,0,0.3)' }}>
+                        {/* Gradient Header */}
+                        <div style={{ background: 'linear-gradient(135deg, var(--primary) 0%, #1e3a8a 100%)', color: 'white', padding: '2.5rem 2rem 2rem', borderRadius: '20px 20px 0 0', position: 'relative' }}>
+                            <button onClick={() => setSelectedCustomer(null)} style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white', width: '32px', height: '32px', borderRadius: '50%', fontSize: '1.2rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>&times;</button>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '1.2rem' }}>
+                                <div style={{ width: '56px', height: '56px', background: 'rgba(255,255,255,0.2)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', fontWeight: '900', flexShrink: 0 }}>{selectedCustomer.name?.charAt(0).toUpperCase() || '?'}</div>
+                                <div style={{ minWidth: 0 }}>
+                                    <h2 style={{ margin: 0, fontSize: '1.3rem', color: 'white', letterSpacing: '0.05em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedCustomer.name?.toUpperCase() || 'UNKNOWN'}</h2>
+                                    <p style={{ margin: '0.3rem 0 0', opacity: 0.7, fontSize: '0.85rem' }}>{selectedCustomer.phone}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Stats */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', borderBottom: '1px solid var(--border-color)' }}>
+                            {[
+                                { label: 'VISITS', value: Object.values(selectedCustomer.stylistData || {}).reduce((s, d) => s + (d.visits || 0), 0) || selectedCustomer.globalStats?.totalVisits || 0 },
+                                { label: 'SPENT', value: formatCurrency(Object.values(selectedCustomer.stylistData || {}).reduce((s, d) => s + (d.spent || 0), 0) || selectedCustomer.globalStats?.totalSpent || 0) },
+                                { label: 'LOYALTY', value: selectedCustomer.loyaltyPoints || 0, color: 'var(--primary)' },
+                                { label: 'CREDIT', value: formatCurrency(selectedCustomer.pendingBalance), color: (selectedCustomer.pendingBalance || 0) > 0 ? 'var(--danger)' : undefined }
+                            ].map((s, i) => (
+                                <div key={i} style={{ padding: '1.2rem 0.5rem', textAlign: 'center', borderRight: i < 3 ? '1px solid var(--border-color)' : 'none' }}>
+                                    <div style={{ fontSize: '0.55rem', letterSpacing: '0.12em', color: 'var(--text-secondary)', marginBottom: '0.4rem', fontWeight: '700' }}>{s.label}</div>
+                                    <div style={{ fontSize: '0.95rem', fontWeight: '900', color: s.color || 'var(--text-primary)' }}>{s.value}</div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Content */}
+                        <div style={{ padding: '1.5rem 2rem 2rem' }}>
+                            {/* Last Receipt */}
+                            {customerAppointments.length > 0 && (() => {
+                                const last = customerAppointments[0];
+                                return (
+                                    <div style={{ marginBottom: '2rem' }}>
+                                        <h3 style={{ fontSize: '0.65rem', letterSpacing: '0.15em', color: 'var(--text-secondary)', marginBottom: '1rem', fontWeight: '800' }}>LAST RECEIPT</h3>
+                                        <div style={{ background: '#f8fafc', borderRadius: '12px', padding: '1.2rem', border: '1px solid var(--border-color)', fontFamily: "'Courier New', monospace" }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.8rem', fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                                                <span>{last.timestamp?.toDate?.().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                                                <span>Styled by: {last.stylistName || 'N/A'}</span>
+                                            </div>
+                                            <div style={{ borderTop: '1px dashed var(--border-color)', paddingTop: '0.6rem' }}>
+                                                {last.services?.map((s, i) => (
+                                                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', padding: '0.2rem 0' }}>
+                                                        <span>{s.name}</span><span style={{ fontWeight: '700' }}>{formatCurrency(s.price)}</span>
+                                                    </div>
+                                                ))}
+                                                {last.products?.map((p, i) => (
+                                                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', padding: '0.2rem 0', color: 'var(--text-secondary)' }}>
+                                                        <span>{p.name} (x{p.quantity || 1})</span><span style={{ fontWeight: '700' }}>{formatCurrency(p.price * (p.quantity || 1))}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <div style={{ borderTop: '1px dashed var(--border-color)', marginTop: '0.6rem', paddingTop: '0.6rem', display: 'flex', justifyContent: 'space-between', fontWeight: '900', fontSize: '0.85rem' }}>
+                                                <span>TOTAL</span><span>{formatCurrency(last.totalAmount)}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+
+                            {/* Service Timeline */}
+                            <h3 style={{ fontSize: '0.65rem', letterSpacing: '0.15em', color: 'var(--text-secondary)', marginBottom: '1rem', fontWeight: '800' }}>SERVICE HISTORY</h3>
+                            {loadingAppointments ? (
+                                <div style={{ textAlign: 'center', padding: '2rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Loading history...</div>
+                            ) : customerAppointments.length > 0 ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                                    {customerAppointments.map(app => (
+                                        <div key={app.id} style={{ padding: '1rem', borderRadius: '10px', border: '1px solid var(--border-color)', fontSize: '0.78rem' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                                                <span style={{ fontWeight: '800', fontSize: '0.8rem' }}>{app.timestamp?.toDate?.().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                                                <span style={{ fontWeight: '900', color: 'var(--primary)' }}>{formatCurrency(app.totalAmount)}</span>
+                                            </div>
+                                            <div style={{ color: 'var(--text-secondary)', fontSize: '0.72rem', marginBottom: '0.3rem' }}>{app.services?.map(s => s.name).join(', ') || 'No services logged'}</div>
+                                            <div style={{ fontSize: '0.65rem', color: 'var(--primary)', fontWeight: '700', letterSpacing: '0.05em' }}>
+                                                ✂ {app.stylistName || 'Unknown Stylist'}
+                                                {app.paymentMode && <span style={{ marginLeft: '0.8rem', color: 'var(--text-secondary)', fontWeight: '600' }}>• {app.paymentMode}</span>}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div style={{ textAlign: 'center', padding: '2rem', fontSize: '0.75rem', color: 'var(--text-secondary)', background: '#f8fafc', borderRadius: '10px' }}>No visit history found for this client</div>
+                            )}
+                        </div>
+                    </div>
+                </div>,
+                document.body
             )}
 
             {/* Premium Feature Modal - Rendered via Portal to Body */}

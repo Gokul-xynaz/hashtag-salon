@@ -30,26 +30,42 @@ export function AuthProvider({ children }) {
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            console.log("Auth State Changed. User:", user ? user.email : "none");
+
             if (user) {
                 // Fetch user role from Firestore 'users' collection
                 try {
-                    const userDoc = await getDoc(doc(db, 'users', user.uid));
+                    console.log("Fetching profile for UID:", user.uid);
+
+                    // Create a promise that rejects after 5 seconds
+                    const timeoutPromise = new Promise((_, reject) =>
+                        setTimeout(() => reject(new Error("Firestore Timeout")), 5000)
+                    );
+
+                    // Race the getDoc against the timeout
+                    const userDoc = await Promise.race([
+                        getDoc(doc(db, 'users', user.uid)),
+                        timeoutPromise
+                    ]);
+
                     if (userDoc.exists()) {
+                        console.log("Profile found. Role:", userDoc.data().role);
                         setUserRole(userDoc.data().role);
                     } else {
-                        console.warn("Unauthorized access attempt: No profile found for", user.email);
+                        console.warn("No profile found for UID:", user.uid);
                         setUserRole('unauthorized');
                     }
                 } catch (error) {
-                    console.error("Error fetching user role:", error);
+                    console.error("AuthContext Profile Fetch Error:", error);
+                    // Still stop loading even if profile fetch fails
                     setUserRole('error');
                 }
                 setCurrentUser(user);
             } else {
                 setCurrentUser(null);
                 setUserRole(null);
-                // We DON'T clear selectedStylist here so the kiosk remembers the last stylus even if session expires
             }
+            console.log("Setting loading to false");
             setLoading(false);
         });
 
