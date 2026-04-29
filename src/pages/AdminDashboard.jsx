@@ -9,7 +9,12 @@ export default function AdminDashboard() {
         return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount || 0);
     };
 
-    if (loading) return <div className="container" style={{ textAlign: 'center', padding: '10rem 0', letterSpacing: '0.2em', color: 'var(--text-secondary)' }}>LOADING ANALYTICS...</div>;
+    if (loading) return (
+        <div className="saas-loader-container">
+            <div className="saas-spinner"></div>
+            <div className="saas-loading-text">SYNCING METRICS</div>
+        </div>
+    );
 
     return (
         <AdminLayout>

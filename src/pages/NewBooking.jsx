@@ -47,6 +47,12 @@ export default function NewBooking() {
     }, [products]);
     const [selectedRetail, setSelectedRetail] = useState([]); // [{ id, name, price, qty }]
 
+    // Feature: Service Keyword Search
+    const [serviceSearch, setServiceSearch] = useState('');
+    // Feature: Cash + Card Split Payment
+    const [splitCashAmount, setSplitCashAmount] = useState(0);
+    const [splitCardAmount, setSplitCardAmount] = useState(0);
+
     const { currentUser, selectedStylist, selectStylist } = useAuth();
     const navigate = useNavigate();
 
@@ -196,11 +202,23 @@ export default function NewBooking() {
 
     // Optimized: Filter services based on stylist permissions
     const displayedServices = useMemo(() => {
-        if (!selectedStylist || !selectedStylist.allowedServices || selectedStylist.allowedServices.length === 0) {
-            return services;
+        let list = (!selectedStylist || !selectedStylist.allowedServices || selectedStylist.allowedServices.length === 0)
+            ? services
+            : services.filter(s => selectedStylist.allowedServices.includes(s.id));
+        if (serviceSearch.trim()) {
+            const q = serviceSearch.toLowerCase().trim();
+            list = list.filter(s =>
+                s.name.toLowerCase().includes(q) ||
+                (s.category?.toLowerCase() || '').includes(q)
+            );
         }
-        return services.filter(s => selectedStylist.allowedServices.includes(s.id));
-    }, [services, selectedStylist]);
+        return list;
+    }, [services, selectedStylist, serviceSearch]);
+
+    // Feature: Auto-scroll to top on step change
+    useEffect(() => {
+        window.scrollTo(0, 0);
+    }, [step]);
 
     useEffect(() => {
         if (timerActive) {
@@ -342,6 +360,14 @@ export default function NewBooking() {
     const handleCheckout = async () => {
         if (selectedServices.length === 0) return;
 
+        // Validation: Split payment amounts
+        if (paymentType === 'split') {
+            if (Math.abs(splitCashAmount + splitCardAmount - calculateTotal) > 0.01) {
+                alert(`Split amounts must add up to the total (${formatCurrency(calculateTotal)}). Please adjust.`);
+                return;
+            }
+        }
+
         // Validation: Dynamic Max Discount from Settings
         const maxLimit = settings?.maxDiscount ?? 50;
         const excessiveDiscount = selectedServices.find(s => s.discount > maxLimit);
@@ -391,18 +417,19 @@ export default function NewBooking() {
                 clientName: client.name,
                 clientPhone: client.phone,
                 services: selectedServices,
-                retailItems: selectedRetail, // Phase 9: Log retail items
-                serviceRevenue: serviceSubtotal, // Split for reporting
+                retailItems: selectedRetail,
+                serviceRevenue: serviceSubtotal,
                 serviceTax: serviceTax,
-                retailRevenue: retailSubtotal,   // Split for reporting
+                retailRevenue: retailSubtotal,
                 retailTax: retailTax,
                 subtotal: serviceSubtotal + retailSubtotal,
                 totalAmount: finalAmount,
                 durationSeconds: seconds,
                 durationMinutes: Math.ceil(seconds / 60),
                 paymentType,
+                ...(paymentType === 'split' && { splitCashAmount, splitCardAmount }),
                 referralRewardUsed: appliedReferralBalance,
-                productUsage, // Consumption metrics
+                productUsage,
                 timestamp: Timestamp.fromDate(effectiveDate),
                 createdTimestamp: serverTimestamp(),
             };
@@ -701,6 +728,27 @@ export default function NewBooking() {
                             + Custom Service
                         </button>
                     </div>
+
+                    {/* Service Search Box */}
+                    <div style={{ position: 'relative', marginTop: '1.5rem' }}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', pointerEvents: 'none' }}>
+                            <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                        <input
+                            type="text"
+                            className="form-input"
+                            placeholder="Search services by name or category..."
+                            value={serviceSearch}
+                            onChange={e => setServiceSearch(e.target.value)}
+                            style={{ paddingLeft: '2.5rem', height: '3rem' }}
+                        />
+                        {serviceSearch && (
+                            <button onClick={() => setServiceSearch('')} style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-secondary)', fontSize: '1.1rem', padding: '0' }}>×</button>
+                        )}
+                    </div>
+                    {serviceSearch && displayedServices.length === 0 && (
+                        <p style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.85rem', margin: '1.5rem 0 0' }}>No services match "{serviceSearch}"</p>
+                    )}
 
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '1rem', margin: '2rem 0' }}>
                         {displayedServices.map(service => {
@@ -1133,20 +1181,31 @@ export default function NewBooking() {
                         </div>
                         <div>
                             <label className="form-label" style={{ marginBottom: '1rem' }}>Payment Method</label>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem' }}>
                                 <button
                                     onClick={() => setPaymentType('cash')}
                                     className={paymentType === 'cash' ? 'btn-primary' : 'btn-outline'}
-                                    style={{ padding: '0.5rem', height: '3.5rem', fontSize: '0.75rem' }}
+                                    style={{ padding: '0.4rem', height: '3.5rem', fontSize: '0.7rem' }}
                                 >
                                     CASH
                                 </button>
                                 <button
                                     onClick={() => setPaymentType('card')}
                                     className={paymentType === 'card' ? 'btn-primary' : 'btn-outline'}
-                                    style={{ padding: '0.5rem', height: '3.5rem', fontSize: '0.75rem' }}
+                                    style={{ padding: '0.4rem', height: '3.5rem', fontSize: '0.7rem' }}
                                 >
                                     CARD/UPI
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setPaymentType('split');
+                                        setSplitCashAmount(0);
+                                        setSplitCardAmount(0);
+                                    }}
+                                    className={paymentType === 'split' ? 'btn-primary' : 'btn-outline'}
+                                    style={{ padding: '0.4rem', height: '3.5rem', fontSize: '0.7rem' }}
+                                >
+                                    SPLIT
                                 </button>
                                 <button
                                     onClick={() => {
@@ -1154,13 +1213,56 @@ export default function NewBooking() {
                                         setCreditAmount(calculateTotal);
                                     }}
                                     className={paymentType === 'credit' ? 'btn-primary' : 'btn-outline'}
-                                    style={{ padding: '0.5rem', height: '3.5rem', fontSize: '0.75rem', borderColor: paymentType === 'credit' ? 'var(--danger)' : 'var(--border-color)', color: paymentType === 'credit' ? 'white' : 'var(--danger)', background: paymentType === 'credit' ? 'var(--danger)' : 'transparent' }}
+                                    style={{ padding: '0.4rem', height: '3.5rem', fontSize: '0.65rem', borderColor: paymentType === 'credit' ? 'var(--danger)' : 'var(--border-color)', color: paymentType === 'credit' ? 'white' : 'var(--danger)', background: paymentType === 'credit' ? 'var(--danger)' : 'transparent' }}
                                 >
                                     CREDIT
                                 </button>
                             </div>
                         </div>
                     </div>
+
+                    {paymentType === 'split' && (
+                        <div className="animate-fade-in" style={{ marginBottom: '2rem', padding: '1.5rem', background: '#f0fdf4', border: '1px solid #4ade80', borderRadius: 'var(--radius-md)' }}>
+                            <label className="form-label" style={{ display: 'block', marginBottom: '1rem', color: '#16a34a' }}>SPLIT PAYMENT BREAKDOWN</label>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                <div>
+                                    <label style={{ fontSize: '0.7rem', fontWeight: '800', display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>CASH ₹</label>
+                                    <input
+                                        type="number"
+                                        className="form-input"
+                                        placeholder="0.00"
+                                        value={splitCashAmount || ''}
+                                        onChange={e => {
+                                            const val = Math.min(calculateTotal, Math.max(0, parseFloat(e.target.value) || 0));
+                                            setSplitCashAmount(val);
+                                            setSplitCardAmount(parseFloat((calculateTotal - val).toFixed(2)));
+                                        }}
+                                        style={{ height: '3rem' }}
+                                    />
+                                </div>
+                                <div>
+                                    <label style={{ fontSize: '0.7rem', fontWeight: '800', display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>CARD / UPI ₹</label>
+                                    <input
+                                        type="number"
+                                        className="form-input"
+                                        placeholder="0.00"
+                                        value={splitCardAmount || ''}
+                                        onChange={e => {
+                                            const val = Math.min(calculateTotal, Math.max(0, parseFloat(e.target.value) || 0));
+                                            setSplitCardAmount(val);
+                                            setSplitCashAmount(parseFloat((calculateTotal - val).toFixed(2)));
+                                        }}
+                                        style={{ height: '3rem' }}
+                                    />
+                                </div>
+                            </div>
+                            <div style={{ marginTop: '1rem', fontSize: '0.75rem', fontWeight: '800', color: Math.abs(splitCashAmount + splitCardAmount - calculateTotal) < 0.01 ? '#16a34a' : 'var(--danger)' }}>
+                                {Math.abs(splitCashAmount + splitCardAmount - calculateTotal) < 0.01
+                                    ? '✓ Amounts balance — ready to checkout'
+                                    : `Unallocated: ${formatCurrency(calculateTotal - splitCashAmount - splitCardAmount)}`}
+                            </div>
+                        </div>
+                    )}
 
                     {paymentType === 'credit' && (
                         <div className="animate-fade-in" style={{
@@ -1219,11 +1321,34 @@ export default function NewBooking() {
                 <div className="card animate-scale-in" style={{ padding: '2rem', textAlign: 'center' }}>
                     <div style={{ color: 'var(--success)', fontSize: '3rem', marginBottom: '1rem' }}>✓</div>
                     <h2>Checkout Complete</h2>
-                    <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>The transaction has been successfully logged.</p>
+                    <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>The transaction has been successfully logged.</p>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+                        <button className="btn-outline" onClick={() => {
+                            const printContents = document.getElementById('receipt-print-area').innerHTML;
+                            const originalContents = document.body.innerHTML;
+                            document.body.innerHTML = printContents;
+                            window.print();
+                            document.body.innerHTML = originalContents;
+                            window.location.reload();
+                        }}>
+                            PRINT RECEIPT
+                        </button>
+                        <button className="btn-primary" onClick={() => { selectStylist(null); navigate('/'); }}>
+                            DONE
+                        </button>
+                    </div>
 
                     {/* Printable Receipt Area */}
-                    <div id="receipt-print-area" style={{ textAlign: 'left', padding: '2rem', background: 'white', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', marginBottom: '2rem', fontFamily: 'monospace', fontSize: '0.85rem' }}>
+                    <div id="receipt-print-area" style={{ textAlign: 'left', padding: '2rem', background: 'white', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', marginBottom: '0', fontFamily: 'monospace', fontSize: '0.85rem' }}>
                         <div style={{ textAlign: 'center', marginBottom: '1rem', borderBottom: '1px dashed black', paddingBottom: '1rem' }}>
+                            {/* Salon Logo */}
+                            <img
+                                src="/logo.png"
+                                alt="Hashtag Salon"
+                                style={{ maxHeight: '80px', maxWidth: '200px', objectFit: 'contain', marginBottom: '0.5rem', display: 'block', margin: '0 auto 0.5rem' }}
+                                onError={e => { e.currentTarget.style.display = 'none'; }}
+                            />
                             <h3 style={{ margin: 0, fontSize: '1.4rem', fontWeight: '900', textTransform: 'uppercase' }}>HASHTAG SALON</h3>
                             <p style={{ margin: '0.2rem 0', fontSize: '0.8rem', fontWeight: '800' }}>Professional Studio</p>
                             <p style={{ margin: '0.4rem auto', fontSize: '0.7rem', lineHeight: '1.4', maxWidth: '250px' }}>
@@ -1254,7 +1379,10 @@ export default function NewBooking() {
                                 <div style={{ textAlign: 'right' }}>
                                     <div style={{ fontWeight: '900', marginBottom: '0.25rem' }}>INVOICE DETAILS:</div>
                                     <div>{completedBill.timestamp.toDate().toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
-                                    <div>Pay Mode: {completedBill.paymentType?.toUpperCase() || 'CASH'}</div>
+                                    <div>
+                                        Pay Mode: {completedBill.paymentType?.toUpperCase() || 'CASH'}
+                                        {completedBill.paymentType === 'split' && ` (Cash: ${formatCurrency(completedBill.splitCashAmount)} / Card: ${formatCurrency(completedBill.splitCardAmount)})`}
+                                    </div>
                                     <div>Styled By: {completedBill.stylistName}</div>
                                 </div>
                             </div>
@@ -1298,22 +1426,6 @@ export default function NewBooking() {
                         <div style={{ textAlign: 'center', marginTop: '2rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                             <p>Thank you for visiting Hashtag Salon!</p>
                         </div>
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                        <button className="btn-outline" onClick={() => {
-                            const printContents = document.getElementById('receipt-print-area').innerHTML;
-                            const originalContents = document.body.innerHTML;
-                            document.body.innerHTML = printContents;
-                            window.print();
-                            document.body.innerHTML = originalContents;
-                            window.location.reload(); // Reload to restore React state cleanly after print hack
-                        }}>
-                            PRINT RECEIPT
-                        </button>
-                        <button className="btn-primary" onClick={() => { selectStylist(null); navigate('/'); }}>
-                            DONE
-                        </button>
                     </div>
                 </div>
             )}

@@ -73,7 +73,9 @@ export default function AdminSettings() {
                     </div>
                 </div>
 
-                <div style={{ marginBottom: '2.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1.5rem', marginTop: '3rem' }}>
+
+
+                <div style={{ marginBottom: '2.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1.5rem', marginTop: '1rem' }}>
                     <h3 style={{ margin: 0, fontSize: '1.2rem', letterSpacing: '0.1em' }}>CRM & REWARDS SYSTEM</h3>
                 </div>
 

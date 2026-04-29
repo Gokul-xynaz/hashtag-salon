@@ -43,6 +43,28 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Custom Selection */
+::selection {
+  background: rgba(10, 25, 47, 0.15); /* Soft primary */
+  color: var(--text-primary);
+}
+
+/* Premium Scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
 body {
   font-family: var(--font-main);
   background:
@@ -55,6 +77,8 @@ body {
   line-height: 1.6;
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 h1,
@@ -109,13 +133,13 @@ button {
 }
 
 .card {
-  background: rgba(255, 255, 255, 0.65);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
   padding: 2rem;
   border-radius: var(--radius-md);
-  border: 1px solid rgba(255, 255, 255, 0.8);
-  box-shadow: 0 8px 32px 0 rgba(15, 23, 42, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 10px 40px -10px rgba(15, 23, 42, 0.08);
   margin-bottom: 1.5rem;
   transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.4s ease;
 }
@@ -129,13 +153,13 @@ button {
 }
 
 .bento-item {
-  background: rgba(255, 255, 255, 0.65);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.9);
   border-radius: 24px;
   padding: 2rem;
-  box-shadow: 0 8px 32px 0 rgba(15, 23, 42, 0.05);
+  box-shadow: 0 10px 40px -10px rgba(15, 23, 42, 0.08);
   transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   text-decoration: none;
   color: inherit;
@@ -193,8 +217,8 @@ button {
 
 .card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
-  border-color: rgba(0, 0, 0, 0.08);
+  box-shadow: 0 20px 40px -10px rgba(15, 23, 42, 0.12);
+  border-color: rgba(255, 255, 255, 1);
 }
 
 /* Premium Buttons */
@@ -288,23 +312,27 @@ button {
 .form-input,
 .form-select {
   width: 100%;
-  padding: 0.75rem 0;
-  /* Underline style */
-  background: transparent;
-  border: none;
-  border-bottom: 1px solid var(--border-color);
+  padding: 0.85rem 0.5rem;
+  background: rgba(255, 255, 255, 0.4);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
   color: var(--text-primary);
-  font-size: 1.125rem;
+  font-size: 1.05rem;
   font-family: var(--font-main);
-  transition: border-color 0.2s;
-  border-radius: 0;
+  transition: all 0.3s ease;
 }
 
 .form-input:focus,
 .form-select:focus {
-  border-bottom: 1px solid var(--primary);
+  background: #ffffff;
+  border-color: var(--primary);
   outline: none;
-  box-shadow: none;
+  box-shadow: 0 0 0 3px rgba(10, 25, 47, 0.1);
+}
+
+.form-input::placeholder {
+  color: #94a3b8;
+  opacity: 1;
 }
 
 /* Tables */
@@ -491,4 +519,55 @@ td {
   to {
     transform: rotate(360deg);
   }
+}
+
+/* --- Enterprise SaaS Loading States --- */
+.saas-loader-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  gap: 1.5rem;
+  color: var(--text-secondary);
+}
+
+.saas-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(15, 23, 42, 0.1);
+  border-radius: 50%;
+  border-top-color: var(--primary);
+  animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.saas-loading-text {
+  font-family: var(--font-heading);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  animation: pulseOpacity 1.5s ease-in-out infinite;
+}
+
+@keyframes pulseOpacity {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+/* Skeleton Loading utility */
+.skeleton {
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: var(--radius-sm);
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }

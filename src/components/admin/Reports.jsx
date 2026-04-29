@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { collection, query, orderBy, getDocs, where, Timestamp } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import AiAnalytics from './AiAnalytics';
@@ -15,6 +16,7 @@ export default function Reports() {
     const [selectedStylistId, setSelectedStylistId] = useState('all');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
+    const [showDetailedTax, setShowDetailedTax] = useState(false);
 
     useEffect(() => {
         const fetchDropdowns = async () => {
@@ -28,6 +30,12 @@ export default function Reports() {
     useEffect(() => {
         fetchReports();
     }, [filter, selectedStylistId, startDate, endDate]);
+
+    useEffect(() => {
+        if (selectedBill) {
+            window.scrollTo(0, 0);
+        }
+    }, [selectedBill]);
 
     const fetchReports = async () => {
         setLoading(true);
@@ -118,7 +126,7 @@ export default function Reports() {
             return;
         }
 
-        const headers = ['Date', 'Type', 'Client/Desc', 'Stylist', 'Services', 'Service_Revenue', 'Service_Tax', 'Retail', 'Retail_Revenue', 'Retail_Tax', 'Method', 'Total_Amount'];
+        const headers = ['Date', 'Type', 'Client/Desc', 'Stylist', 'Services', 'Exclusive_Subtotal', 'Tax_Amount', 'Retail_Subtotal', 'Retail_Tax', 'Method', 'Inclusive_Total'];
         const csvRows = [headers.join(',')];
 
         appointments.forEach(app => {
@@ -146,8 +154,7 @@ export default function Reports() {
                     `"${app.stylistName}"`,
                     `"${app.services?.map(s => s.name).join('; ') || '-'}"`,
                     `${app.serviceRevenue || 0}`,
-                    `${app.serviceTax || 0}`,
-                    `"${app.retailItems?.map(r => `${r.qty}x ${r.name}`).join('; ') || '-'}"`,
+                    `${(app.serviceTax || 0) + (app.retailTax || 0)}`,
                     `${app.retailRevenue || 0}`,
                     `${app.retailTax || 0}`,
                     `"${app.paymentType?.toUpperCase() || ''}"`,
@@ -300,6 +307,28 @@ export default function Reports() {
                                     style={{ height: '3rem', fontSize: '0.85rem' }}
                                 />
                             </div>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-start' }}>
+                                <label className="form-label" style={{ fontSize: '0.65rem', letterSpacing: '0.1em' }}>DETAILED TAX VIEW</label>
+                                <div
+                                    onClick={() => setShowDetailedTax(!showDetailedTax)}
+                                    style={{
+                                        width: '50px',
+                                        height: '26px',
+                                        background: showDetailedTax ? 'var(--text-primary)' : '#cbd5e1',
+                                        borderRadius: '13px',
+                                        padding: '3px',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.3s ease',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: showDetailedTax ? 'flex-end' : 'flex-start',
+                                        marginTop: '0.25rem'
+                                    }}
+                                >
+                                    <div style={{ width: '20px', height: '20px', background: 'white', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }}></div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -315,9 +344,17 @@ export default function Reports() {
                                             <th style={{ padding: '1rem', fontSize: '0.7rem', letterSpacing: '0.15em' }}>EXECUTED BY</th>
                                             <th style={{ padding: '1rem', fontSize: '0.7rem', letterSpacing: '0.15em' }}>CLIENT IDENTITY</th>
                                             <th style={{ padding: '1rem', fontSize: '0.7rem', letterSpacing: '0.15em' }}>SERVICES RENDERED</th>
-                                            <th style={{ padding: '1rem', fontSize: '0.7rem', letterSpacing: '0.15em' }}>RETAIL SALES</th>
+                                            {!showDetailedTax && <th style={{ padding: '1rem', fontSize: '0.7rem', letterSpacing: '0.15em' }}>RETAIL</th>}
                                             <th style={{ padding: '1rem', fontSize: '0.7rem', letterSpacing: '0.15em' }}>DURATION</th>
-                                            <th style={{ padding: '1rem', textAlign: 'right', fontSize: '0.7rem', letterSpacing: '0.15em' }}>TOTAL REVENUE</th>
+                                            {showDetailedTax ? (
+                                                <>
+                                                    <th style={{ padding: '1rem', textAlign: 'right', fontSize: '0.7rem', letterSpacing: '0.15em' }}>SERVICE</th>
+                                                    <th style={{ padding: '1rem', textAlign: 'right', fontSize: '0.7rem', letterSpacing: '0.15em' }}>GST</th>
+                                                    <th style={{ padding: '1rem', textAlign: 'right', fontSize: '0.7rem', letterSpacing: '0.15em' }}>TOTAL</th>
+                                                </>
+                                            ) : (
+                                                <th style={{ padding: '1rem', textAlign: 'right', fontSize: '0.7rem', letterSpacing: '0.15em' }}>TOTAL REVENUE</th>
+                                            )}
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -374,20 +411,13 @@ export default function Reports() {
                                                         </div>
                                                     )}
                                                 </td>
-                                                <td style={{ padding: '1.5rem 1rem' }}>
-                                                    {app.type === 'expense' ? (
-                                                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>-</span>
-                                                    ) : app.retailRevenue > 0 ? (
-                                                        <>
-                                                            <div style={{ fontWeight: '800', color: 'var(--primary)' }}>+{formatCurrency(app.retailRevenue)}</div>
-                                                            <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
-                                                                {app.retailItems?.map(i => `${i.qty}x ${i.name}`).join(', ')}
-                                                            </div>
-                                                        </>
-                                                    ) : (
-                                                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>-</span>
-                                                    )}
-                                                </td>
+                                                {!showDetailedTax && (
+                                                    <td style={{ padding: '1.5rem 1rem' }}>
+                                                        {app.type === 'sale' && app.retailRevenue > 0 ? (
+                                                            <div style={{ fontWeight: '800', color: 'var(--primary)', fontSize: '0.8rem' }}>+{formatCurrency(app.retailRevenue)}</div>
+                                                        ) : <span style={{ color: 'var(--text-secondary)' }}>-</span>}
+                                                    </td>
+                                                )}
                                                 <td style={{ padding: '1.5rem 1rem' }}>
                                                     {app.type === 'expense' ? (
                                                         <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>-</span>
@@ -395,21 +425,47 @@ export default function Reports() {
                                                         <span style={{ fontSize: '0.85rem', fontWeight: '600' }}>{formatDuration(app.durationMinutes)}</span>
                                                     )}
                                                 </td>
-                                                <td style={{ padding: '1.5rem 1rem', textAlign: 'right' }}>
-                                                    {app.type === 'expense' ? (
-                                                        <span style={{ fontWeight: '900', fontSize: '1.1rem', color: 'var(--danger)' }}>-{formatCurrency(app.amount)}</span>
-                                                    ) : (
-                                                        <>
-                                                            <span style={{ fontWeight: '900', fontSize: '1.1rem', color: 'var(--success)', display: 'block' }}>+{formatCurrency(app.totalAmount)}</span>
-                                                            <button
-                                                                onClick={() => setSelectedBill(app)}
-                                                                style={{ background: 'var(--primary)', color: 'white', border: 'none', padding: '0.2rem 0.6rem', borderRadius: '4px', fontSize: '0.65rem', marginTop: '0.5rem', cursor: 'pointer', fontWeight: '800' }}
-                                                            >
-                                                                PRINT BILL
-                                                            </button>
-                                                        </>
-                                                    )}
-                                                </td>
+                                                {showDetailedTax ? (
+                                                    <>
+                                                        <td style={{ padding: '1.5rem 1rem', textAlign: 'right' }}>
+                                                            {app.type === 'expense' ? (
+                                                                <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>-</span>
+                                                            ) : (
+                                                                <span style={{ fontWeight: '700', fontSize: '0.85rem', color: 'var(--text-primary)' }}>{formatCurrency(app.serviceRevenue || 0)}</span>
+                                                            )}
+                                                        </td>
+                                                        <td style={{ padding: '1.5rem 1rem', textAlign: 'right' }}>
+                                                            {app.type === 'expense' ? (
+                                                                <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>-</span>
+                                                            ) : (
+                                                                <span style={{ fontWeight: '700', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{formatCurrency((app.serviceTax || 0) + (app.retailTax || 0))}</span>
+                                                            )}
+                                                        </td>
+                                                        <td style={{ padding: '1.5rem 1rem', textAlign: 'right' }}>
+                                                            {app.type === 'expense' ? (
+                                                                <span style={{ fontWeight: '900', fontSize: '1rem', color: 'var(--danger)' }}>-{formatCurrency(app.amount)}</span>
+                                                            ) : (
+                                                                <span style={{ fontWeight: '900', fontSize: '1rem', color: 'var(--success)' }}>+{formatCurrency(app.totalAmount)}</span>
+                                                            )}
+                                                        </td>
+                                                    </>
+                                                ) : (
+                                                    <td style={{ padding: '1.5rem 1rem', textAlign: 'right' }}>
+                                                        {app.type === 'expense' ? (
+                                                            <span style={{ fontWeight: '900', fontSize: '1.1rem', color: 'var(--danger)' }}>-{formatCurrency(app.amount)}</span>
+                                                        ) : (
+                                                            <>
+                                                                <span style={{ fontWeight: '900', fontSize: '1.1rem', color: 'var(--success)', display: 'block' }}>+{formatCurrency(app.totalAmount)}</span>
+                                                                <button
+                                                                    onClick={() => setSelectedBill(app)}
+                                                                    style={{ background: 'var(--primary)', color: 'white', border: 'none', padding: '0.2rem 0.6rem', borderRadius: '4px', fontSize: '0.65rem', marginTop: '0.5rem', cursor: 'pointer', fontWeight: '800' }}
+                                                                >
+                                                                    PRINT BILL
+                                                                </button>
+                                                            </>
+                                                        )}
+                                                    </td>
+                                                )}
                                             </tr>
                                         ))}
                                         {appointments.length === 0 && (
@@ -444,17 +500,41 @@ export default function Reports() {
             )}
 
             {/* Printable Receipt Modal */}
-            {selectedBill && (
+            {selectedBill && createPortal(
                 <div style={{
                     position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
                     background: 'rgba(15, 23, 42, 0.8)', backdropFilter: 'blur(5px)',
                     display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '2rem'
                 }}>
-                    <div className="card animate-scale-in" style={{ padding: '2rem', textAlign: 'center', maxWidth: '500px', width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
-                        <h2 style={{ marginBottom: '1rem' }}>Historical Receipt</h2>
+                    <div className="card animate-scale-in" style={{ maxWidth: '480px', width: '100%', maxHeight: '88vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: 0 }}>
 
-                        <div id="receipt-print-area" style={{ textAlign: 'left', padding: '2rem', background: 'white', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', marginBottom: '2rem', fontFamily: 'monospace', fontSize: '0.85rem' }}>
+                        {/* Sticky action bar — always visible, never scrolls */}
+                        <div style={{ padding: '0.85rem 1.25rem', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, background: 'var(--bg-primary)' }}>
+                            <span style={{ fontWeight: '800', fontSize: '0.75rem', letterSpacing: '0.12em', color: 'var(--text-secondary)' }}>RECEIPT</span>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                <button className="btn-outline" style={{ padding: '0.35rem 0.9rem', fontSize: '0.7rem', fontWeight: '800' }} onClick={() => {
+                                    const printContents = document.getElementById('receipt-print-area').innerHTML;
+                                    const originalContents = document.body.innerHTML;
+                                    document.body.innerHTML = printContents;
+                                    window.print();
+                                    document.body.innerHTML = originalContents;
+                                    window.location.reload();
+                                }}>🖨 PRINT</button>
+                                <button className="btn-primary" style={{ padding: '0.35rem 0.9rem', fontSize: '0.7rem', fontWeight: '800' }} onClick={() => setSelectedBill(null)}>✕ CLOSE</button>
+                            </div>
+                        </div>
+
+                        {/* Scrollable receipt body */}
+                        <div style={{ overflowY: 'auto', padding: '1.25rem' }}>
+                        <div id="receipt-print-area" style={{ textAlign: 'left', padding: '1.25rem', background: 'white', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', fontFamily: 'monospace', fontSize: '0.82rem' }}>
                             <div style={{ textAlign: 'center', marginBottom: '1rem', borderBottom: '1px dashed black', paddingBottom: '1rem' }}>
+                                {/* Salon Logo */}
+                                <img
+                                    src="/logo.png"
+                                    alt="Hashtag Salon"
+                                    style={{ maxHeight: '80px', maxWidth: '200px', objectFit: 'contain', display: 'block', margin: '0 auto 0.5rem' }}
+                                    onError={e => { e.currentTarget.style.display = 'none'; }}
+                                />
                                 <h3 style={{ margin: 0, fontSize: '1.4rem', fontWeight: '900', textTransform: 'uppercase', color: 'black' }}>HASHTAG SALON</h3>
                                 <p style={{ margin: '0.2rem 0', fontSize: '0.8rem', fontWeight: '800', color: 'black' }}>Professional Studio</p>
                                 <p style={{ margin: '0.4rem auto', fontSize: '0.7rem', lineHeight: '1.4', maxWidth: '250px', color: 'black' }}>
@@ -485,7 +565,10 @@ export default function Reports() {
                                     <div style={{ textAlign: 'right' }}>
                                         <div style={{ fontWeight: '900', marginBottom: '0.25rem' }}>INVOICE DETAILS:</div>
                                         <div>{selectedBill.timestamp ? selectedBill.timestamp.toDate().toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'}</div>
-                                        <div>Pay Mode: {selectedBill.paymentType?.toUpperCase() || 'CASH'}</div>
+                                        <div>
+                                            Pay Mode: {selectedBill.paymentType?.toUpperCase() || 'CASH'}
+                                            {selectedBill.paymentType === 'split' && ` (Cash: ${formatCurrency(selectedBill.splitCashAmount)} / Card: ${formatCurrency(selectedBill.splitCardAmount)})`}
+                                        </div>
                                         <div>Styled By: {selectedBill.stylistName}</div>
                                     </div>
                                 </div>
@@ -526,28 +609,13 @@ export default function Reports() {
                                 <span>{formatCurrency(selectedBill.totalAmount || 0)}</span>
                             </div>
 
-                            <div style={{ textAlign: 'center', marginTop: '2rem', fontSize: '0.75rem', opacity: 0.7, color: 'black' }}>
-                                <p>Thank you for visiting Hashtag Salon!</p>
+                            <div style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.72rem', opacity: 0.65, color: 'black' }}>
+                                Thank you for visiting Hashtag Salon!
                             </div>
-                        </div>
-
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                            <button className="btn-outline" onClick={() => {
-                                const printContents = document.getElementById('receipt-print-area').innerHTML;
-                                const originalContents = document.body.innerHTML;
-                                document.body.innerHTML = printContents;
-                                window.print();
-                                document.body.innerHTML = originalContents;
-                                window.location.reload();
-                            }}>
-                                PRINT RECEIPT
-                            </button>
-                            <button className="btn-primary" onClick={() => setSelectedBill(null)}>
-                                CLOSE
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                        </div> {/* end receipt-print-area */}
+                        </div> {/* end scrollable body */}
+                    </div> {/* end modal card */}
+                </div>, document.body
             )}
         </div>
     );
