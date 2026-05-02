@@ -124,6 +124,14 @@ export default function StylistDashboard() {
     const [selectedCustomer, setSelectedCustomer] = useState(null);
     const [loadingAppointments, setLoadingAppointments] = useState(false);
     const [customerAppointments, setCustomerAppointments] = useState([]);
+    
+    // Expense Logger State
+    const [expenseAmount, setExpenseAmount] = useState('');
+    const [expenseDesc, setExpenseDesc] = useState('');
+    const [expenseMethod, setExpenseMethod] = useState('cash');
+    const [loggingExpense, setLoggingExpense] = useState(false);
+    const [myExpenses, setMyExpenses] = useState([]);
+    const [showExpenseToast, setShowExpenseToast] = useState(false);
 
     const formatCurrency = (amount) => {
         return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount || 0);
@@ -150,6 +158,68 @@ export default function StylistDashboard() {
             setLoadingAppointments(false);
         }
     };
+
+    // --- Expense Logger Logic ---
+    useEffect(() => {
+        if (!selectedStylist) {
+            setMyExpenses([]);
+            return;
+        }
+
+        const fetchMyExpenses = async () => {
+            try {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                
+                const q = query(
+                    collection(db, 'expenses'),
+                    where('loggedBy', '==', selectedStylist.name),
+                    where('date', '>=', Timestamp.fromDate(today)),
+                    orderBy('date', 'desc')
+                );
+                const snap = await getDocs(q);
+                setMyExpenses(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+            } catch (err) {
+                console.error("Error fetching stylist expenses:", err);
+            }
+        };
+        fetchMyExpenses();
+    }, [selectedStylist]);
+
+    const handleLogExpense = async (e) => {
+        e.preventDefault();
+        if (!expenseAmount || !expenseDesc || !selectedStylist) return;
+
+        setLoggingExpense(true);
+        try {
+            const expenseData = {
+                amount: parseFloat(expenseAmount),
+                description: expenseDesc,
+                method: expenseMethod,
+                date: serverTimestamp(),
+                loggedBy: selectedStylist.name,
+                stylistId: selectedStylist.id
+            };
+
+            await addDoc(collection(db, 'expenses'), expenseData);
+            
+            // Local update for immediate feedback
+            setMyExpenses(prev => [{ ...expenseData, id: Date.now().toString(), date: { toDate: () => new Date() } }, ...prev]);
+            
+            // Reset form
+            setExpenseAmount('');
+            setExpenseDesc('');
+            setExpenseMethod('cash');
+            setShowExpenseToast(true);
+            setTimeout(() => setShowExpenseToast(false), 3000);
+        } catch (err) {
+            console.error("Failed to log expense:", err);
+            alert("Failed to log expense. Please try again.");
+        } finally {
+            setLoggingExpense(false);
+        }
+    };
+    // --- End Expense Logic ---
 
     if (loadingStylists) return (
         <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', flexDirection: 'column', gap: '1rem' }}>
@@ -493,6 +563,93 @@ export default function StylistDashboard() {
                         <p style={{ fontSize: '2.5rem', fontWeight: '900', margin: '1rem 0', whiteSpace: 'nowrap' }}>
                             {loadingStats ? '...' : formatCurrency(averageBill)}
                         </p>
+                    </div>
+
+                    {/* Shop Expense Logger - Premium Stylist Tool */}
+                    <div className="bento-item bento-full" style={{ padding: 0, overflow: 'hidden', display: 'grid', gridTemplateColumns: 'minmax(300px, 1fr) minmax(300px, 1.2fr)', background: 'white' }}>
+                        {/* Form Side */}
+                        <div style={{ padding: '2.5rem', borderRight: '1px solid var(--border-color)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
+                                <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'var(--danger)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>
+                                </div>
+                                <h3 style={{ margin: 0, fontSize: '1.1rem', letterSpacing: '0.05em' }}>LOG SHOP EXPENSE</h3>
+                            </div>
+
+                            <form onSubmit={handleLogExpense}>
+                                <div className="form-group">
+                                    <label className="form-label" style={{ fontSize: '0.65rem' }}>DESCRIPTION / ITEM</label>
+                                    <input 
+                                        type="text" 
+                                        className="form-input" 
+                                        placeholder="e.g. Drinking Water, Cleaning, Tea" 
+                                        value={expenseDesc}
+                                        onChange={e => setExpenseDesc(e.target.value)}
+                                        required 
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label" style={{ fontSize: '0.65rem' }}>AMOUNT (₹)</label>
+                                    <input 
+                                        type="number" 
+                                        className="form-input" 
+                                        placeholder="0.00" 
+                                        value={expenseAmount}
+                                        onChange={e => setExpenseAmount(e.target.value)}
+                                        required 
+                                    />
+                                </div>
+                                <div className="form-group" style={{ marginBottom: '2rem' }}>
+                                    <label className="form-label" style={{ fontSize: '0.65rem' }}>METHOD</label>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                                        <button 
+                                            type="button" 
+                                            onClick={() => setExpenseMethod('cash')}
+                                            className={expenseMethod === 'cash' ? 'btn-primary' : 'btn-outline'}
+                                            style={{ height: '3rem', fontSize: '0.7rem' }}
+                                        >CASH</button>
+                                        <button 
+                                            type="button" 
+                                            onClick={() => setExpenseMethod('card')}
+                                            className={expenseMethod === 'card' ? 'btn-primary' : 'btn-outline'}
+                                            style={{ height: '3rem', fontSize: '0.7rem' }}
+                                        >UPI / ONLINE</button>
+                                    </div>
+                                </div>
+                                <button type="submit" className="btn-danger" disabled={loggingExpense} style={{ width: '100%', height: '3.5rem', fontWeight: '900' }}>
+                                    {loggingExpense ? 'RECORDING...' : 'CONFIRM TRANSACTION'}
+                                </button>
+                                {showExpenseToast && (
+                                    <p style={{ color: 'var(--success)', fontSize: '0.75rem', textAlign: 'center', marginTop: '1rem', fontWeight: '700' }}>✓ RECORDED SUCCESSFULLY</p>
+                                )}
+                            </form>
+                        </div>
+
+                        {/* Recent History Side */}
+                        <div style={{ padding: '2.5rem', background: '#fcfdfe' }}>
+                            <h4 style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', letterSpacing: '0.15em', marginBottom: '1.5rem' }}>TODAY'S LOGS</h4>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                {myExpenses.length === 0 ? (
+                                    <div style={{ padding: '3rem 1rem', textAlign: 'center', opacity: 0.5 }}>
+                                        <p style={{ fontSize: '0.75rem', fontStyle: 'italic' }}>No expenses logged today.</p>
+                                    </div>
+                                ) : (
+                                    myExpenses.map(exp => (
+                                        <div key={exp.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', background: 'white', border: '1px solid var(--border-color)', borderRadius: '12px' }}>
+                                            <div>
+                                                <div style={{ fontWeight: '800', fontSize: '0.85rem' }}>{exp.description}</div>
+                                                <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                                                    {exp.date?.toDate ? exp.date.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'} • {exp.method?.toUpperCase()}
+                                                </div>
+                                            </div>
+                                            <div style={{ fontWeight: '900', color: 'var(--danger)', fontSize: '1rem' }}>
+                                                -{formatCurrency(exp.amount)}
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}
