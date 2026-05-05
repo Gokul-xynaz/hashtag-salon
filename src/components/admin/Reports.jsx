@@ -113,8 +113,8 @@ export default function Reports() {
             }
 
             setAppointments(combinedData);
-        } catch (error) {
-            console.error("Error loading reports:", error);
+        } catch (err) {
+            console.error("Error fetching data:", err);
         } finally {
             setLoading(false);
         }
@@ -126,7 +126,7 @@ export default function Reports() {
             return;
         }
 
-        const headers = ['Date', 'Type', 'Client/Desc', 'Stylist', 'Services', 'Exclusive_Subtotal', 'Tax_Amount', 'Retail_Subtotal', 'Retail_Tax', 'Method', 'Inclusive_Total'];
+        const headers = ['Date', 'Type', 'Identity', 'Stylist', 'Details', 'Service_Rev', 'Total_Tax', 'Retail_Rev', 'Retail_Tax', 'MODE', 'TOTAL'];
         const csvRows = [headers.join(',')];
 
         appointments.forEach(app => {
@@ -140,10 +140,9 @@ export default function Reports() {
                     '"-"',
                     '0',
                     '0',
-                    '"-"',
                     '0',
                     '0',
-                    `"${app.method?.toUpperCase() || ''}"`,
+                    `"${(app.method || 'N/A').toUpperCase()}"`,
                     `-${app.amount || 0}`
                 ].join(','));
             } else {
@@ -157,7 +156,7 @@ export default function Reports() {
                     `${(app.serviceTax || 0) + (app.retailTax || 0)}`,
                     `${app.retailRevenue || 0}`,
                     `${app.retailTax || 0}`,
-                    `"${app.paymentType?.toUpperCase() || ''}"`,
+                    `"${(app.paymentType || app.method || 'N/A').toUpperCase()}"`,
                     `${app.totalAmount || 0}`
                 ].join(','));
             }
@@ -343,6 +342,7 @@ export default function Reports() {
                                             <th style={{ padding: '1rem', fontSize: '0.7rem', letterSpacing: '0.15em' }}>TIMESTAMP</th>
                                             <th style={{ padding: '1rem', fontSize: '0.7rem', letterSpacing: '0.15em' }}>EXECUTED BY</th>
                                             <th style={{ padding: '1rem', fontSize: '0.7rem', letterSpacing: '0.15em' }}>CLIENT IDENTITY</th>
+                                            <th style={{ padding: '1rem', fontSize: '0.7rem', letterSpacing: '0.15em' }}>MODE</th>
                                             <th style={{ padding: '1rem', fontSize: '0.7rem', letterSpacing: '0.15em' }}>SERVICES RENDERED</th>
                                             {!showDetailedTax && <th style={{ padding: '1rem', fontSize: '0.7rem', letterSpacing: '0.15em' }}>RETAIL</th>}
                                             <th style={{ padding: '1rem', fontSize: '0.7rem', letterSpacing: '0.15em' }}>DURATION</th>
@@ -398,6 +398,20 @@ export default function Reports() {
                                                             <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{app.clientPhone}</div>
                                                         </>
                                                     )}
+                                                </td>
+                                                <td style={{ padding: '1.5rem 1rem' }}>
+                                                    <span 
+                                                        style={{ 
+                                                            fontSize: '0.65rem', 
+                                                            fontWeight: '900', 
+                                                            padding: '0.2rem 0.5rem', 
+                                                            borderRadius: '4px',
+                                                            background: (app.paymentType || app.method) === 'cash' ? '#fef3c7' : '#dbeafe',
+                                                            color: (app.paymentType || app.method) === 'cash' ? '#92400e' : '#1e40af'
+                                                        }}
+                                                    >
+                                                        {(app.paymentType || app.method || 'N/A').toUpperCase()}
+                                                    </span>
                                                 </td>
                                                 <td style={{ padding: '1.5rem 1rem' }}>
                                                     {app.type === 'expense' ? (
