@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { collection, onSnapshot, query, where, doc, limit } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, doc, getDocs, limit, orderBy } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { useAuth } from './AuthContext';
 
@@ -14,10 +14,15 @@ export function DataProvider({ children }) {
     const [loadingSettings, setLoadingSettings] = useState(true);
     const [ongoingSessions, setOngoingSessions] = useState([]);
     const [loadingSessions, setLoadingSessions] = useState(true);
-    const [customers, setCustomers] = useState([]);
-    const [loadingCustomers, setLoadingCustomers] = useState(true);
+    const [attendance, setAttendance] = useState([]);
+    const [loadingAttendance, setLoadingAttendance] = useState(true);
+
     const [products, setProducts] = useState([]);
     const [loadingProducts, setLoadingProducts] = useState(true);
+    const [packages, setPackages] = useState([]);
+    const [loadingPackages, setLoadingPackages] = useState(true);
+    const [memberships, setMemberships] = useState([]);
+    const [loadingMemberships, setLoadingMemberships] = useState(true);
     const { currentUser } = useAuth();
 
     useEffect(() => {
@@ -31,10 +36,13 @@ export function DataProvider({ children }) {
             setLoadingSettings(false);
             setOngoingSessions([]);
             setLoadingSessions(false);
-            setCustomers([]);
-            setLoadingCustomers(false);
-            setProducts([]);
-            setLoadingProducts(false);
+            setAttendance([]);
+            setLoadingAttendance(false);
+
+            setPackages([]);
+            setLoadingPackages(false);
+            setMemberships([]);
+            setLoadingMemberships(false);
             return;
         }
 
@@ -42,6 +50,10 @@ export function DataProvider({ children }) {
         const unsubServices = onSnapshot(collection(db, 'services'), (snapshot) => {
             const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             setServices(list);
+            console.log("===============================");
+            console.log("HASHTAG_SERVICES_DUMP:");
+            console.log(JSON.stringify(list, null, 2));
+            console.log("===============================");
             setLoadingServices(false);
         }, (err) => {
             console.error("Services stream error:", err);
@@ -52,8 +64,14 @@ export function DataProvider({ children }) {
         const qStylists = query(collection(db, 'users'), where('role', '==', 'stylist'));
         const unsubStylists = onSnapshot(qStylists, (snapshot) => {
             const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            // Strict filter to hide technical accounts
-            const filtered = list.filter(u => !u.isKiosk && u.email !== 'contact@hashtagsaloon.com');
+            // Strict filter to hide technical accounts and the unused 'stylist' profile
+            const filtered = list.filter(u => 
+                !u.isKiosk && 
+                u.email !== 'hashtagsalon@store.com' && 
+                u.name?.toLowerCase() !== 'stylist' && 
+                u.id !== 'stylist' && 
+                !u.email?.toLowerCase().startsWith('stylist@')
+            );
             setStylists(filtered);
             setLoadingStylists(false);
         }, (err) => {
@@ -82,18 +100,21 @@ export function DataProvider({ children }) {
             setLoadingSessions(false);
         });
 
-        // 5. Real-time Customers (Limited to 500 for performance)
-        const qCustomers = query(collection(db, 'customers'), limit(500));
-        const unsubCustomers = onSnapshot(qCustomers, (snapshot) => {
+        // 5. Attendance (Today's Status)
+        const today = new Date().toLocaleDateString('en-CA');
+        const qAttendance = query(collection(db, 'attendance'), where('date', '==', today));
+        const unsubAttendance = onSnapshot(qAttendance, (snapshot) => {
             const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            setCustomers(list);
-            setLoadingCustomers(false);
+            setAttendance(list);
+            setLoadingAttendance(false);
         }, (err) => {
-            console.error("Customers stream error:", err);
-            setLoadingCustomers(false);
+            console.error("Attendance stream error:", err);
+            setLoadingAttendance(false);
         });
 
-        // 6. Real-time Products
+
+
+        // 7. Real-time Products
         const unsubProducts = onSnapshot(collection(db, 'products'), (snapshot) => {
             const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             setProducts(list);
@@ -103,20 +124,43 @@ export function DataProvider({ children }) {
             setLoadingProducts(false);
         });
 
+        // 8. Real-time Packages
+        const unsubPackages = onSnapshot(collection(db, 'packages'), (snapshot) => {
+            const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setPackages(list);
+            setLoadingPackages(false);
+        }, (err) => {
+            console.error("Packages stream error:", err);
+            setLoadingPackages(false);
+        });
+
+        // 9. Real-time Memberships
+        const unsubMemberships = onSnapshot(collection(db, 'memberships'), (snapshot) => {
+            const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setMemberships(list);
+            setLoadingMemberships(false);
+        }, (err) => {
+            console.error("Memberships stream error:", err);
+            setLoadingMemberships(false);
+        });
+
         return () => {
             unsubServices();
             unsubStylists();
             unsubSettings();
             unsubSessions();
-            unsubCustomers();
+            unsubAttendance();
+
             unsubProducts();
+            unsubPackages();
+            unsubMemberships();
         };
     }, [currentUser]);
 
     const value = React.useMemo(() => {
         const trialStartedAt = settings?.trialStartedAt?.toDate?.() || null;
         const now = new Date();
-        const trialDuration = 366 * 24 * 60 * 60 * 1000; // 366 Days
+        const trialDuration = 30 * 24 * 60 * 60 * 1000; // 30 Days
 
         let trialDaysRemaining = 0;
         if (trialStartedAt) {
@@ -138,12 +182,17 @@ export function DataProvider({ children }) {
             trialDaysRemaining,
             ongoingSessions,
             loadingSessions,
-            customers,
-            loadingCustomers,
+            attendance,
+            loadingAttendance,
+
             products,
-            loadingProducts
+            loadingProducts,
+            packages,
+            loadingPackages,
+            memberships,
+            loadingMemberships
         };
-    }, [services, loadingServices, stylists, loadingStylists, settings, loadingSettings, ongoingSessions, loadingSessions, customers, loadingCustomers, products, loadingProducts]);
+    }, [services, loadingServices, stylists, loadingStylists, settings, loadingSettings, ongoingSessions, loadingSessions, attendance, loadingAttendance, products, loadingProducts, packages, loadingPackages, memberships, loadingMemberships]);
 
     return (
         <DataContext.Provider value={value}>

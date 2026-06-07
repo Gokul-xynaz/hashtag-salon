@@ -1,90 +1,97 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { useData } from '../../context/DataProvider';
 
-export default function ProtectedRoute({ children, allowedRoles }) {
-    const { currentUser, userRole } = useAuth();
-    const { isPremiumActive, trialDaysRemaining, loadingSettings } = useData();
+export default function ProtectedRoute({ children, allowedRoles, requiredPermission }) {
+    const { currentUser, userRole, userPermissions } = useAuth();
 
     // If user is logged in but role hasn't loaded yet, show nothing or a loader
-    if (currentUser && (userRole === null || loadingSettings)) {
+    if (currentUser && userRole === null) {
         return (
             <div style={{
                 height: '100vh',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                background: 'var(--bg-primary)',
-                color: 'var(--text-secondary)',
-                fontSize: '0.9rem',
-                letterSpacing: '0.1em',
-                textTransform: 'uppercase'
+                background: '#f9fafb',
+                flexDirection: 'column',
+                gap: '1rem'
             }}>
-                Validating Access...
+                <div style={{
+                    width: '36px', height: '36px', border: '3px solid #e5e7eb',
+                    borderTop: '3px solid #0d9488', borderRadius: '50%',
+                    animation: 'spin 0.8s linear infinite'
+                }} />
+                <span style={{ color: '#6b7280', fontSize: '0.85rem', fontWeight: '600', letterSpacing: '0.04em' }}>
+                    Validating Access...
+                </span>
+                <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
             </div>
         );
     }
 
-    if (!currentUser || userRole === 'unauthorized') {
+    if (!currentUser || userRole === 'unauthorized' || userRole === 'error') {
         return <Navigate to="/login" replace />;
     }
 
-    // Global Subcription Lockout
-    if (!isPremiumActive && trialDaysRemaining <= 0) {
+    // If roles are specified, check if user has permission
+    // Check granular permission if required
+    if (requiredPermission && userPermissions && userPermissions[requiredPermission] === false) {
+        return (
+            <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f9fafb', flexDirection: 'column', gap: '1rem', textAlign: 'center', padding: '2rem' }}>
+                <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="1.75" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+                </div>
+                <div>
+                    <h2 style={{ margin: '0 0 0.25rem', fontSize: '1.25rem', fontWeight: '800', color: '#111827' }}>Permission Denied</h2>
+                    <p style={{ margin: '0 0 1.25rem', color: '#6b7280', fontSize: '0.875rem' }}>You don&apos;t have access to this module. Ask your admin to enable it.</p>
+                </div>
+                <a href="/v2/dashboard" style={{ padding: '0.6rem 1.5rem', background: '#0d9488', color: 'white', borderRadius: '10px', textDecoration: 'none', fontWeight: '700', fontSize: '0.85rem' }}>Go to Dashboard</a>
+            </div>
+        );
+    }
+
+    if (allowedRoles && !allowedRoles.includes(userRole)) {
+        // Redirect stylists to their dashboard, admins to theirs
+        const redirectPath = userRole === 'stylist' ? '/v2/dashboard' : '/';
         return (
             <div style={{
                 height: '100vh',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
-                color: 'white',
+                background: '#f9fafb',
                 flexDirection: 'column',
+                gap: '1rem',
                 textAlign: 'center',
                 padding: '2rem'
             }}>
-                <div style={{ background: 'rgba(255,255,255,0.1)', padding: '1rem', borderRadius: '50%', marginBottom: '2rem' }}>
-                    <span style={{ fontSize: '4rem' }}>🔒</span>
+                <div style={{
+                    width: '56px', height: '56px', borderRadius: '16px',
+                    background: '#fef2f2', display: 'flex', alignItems: 'center',
+                    justifyContent: 'center'
+                }}>
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="1.75" strokeLinecap="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                    </svg>
                 </div>
-                <h2 style={{ letterSpacing: '0.2em', fontSize: '2rem', marginBottom: '1rem' }}>SUBSCRIPTION EXPIRED</h2>
-                <div style={{ background: 'var(--danger)', color: 'white', padding: '0.25rem 0.75rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: '900', letterSpacing: '0.1em', marginBottom: '2rem' }}>YEARLY LICENSE REQUIRED</div>
-
-                <p style={{ opacity: 0.8, maxWidth: '500px', margin: '0 auto 3rem', lineHeight: '1.6', fontSize: '1rem' }}>
-                    Your 366-day subscription for **Hashtag Salon Billing** has concluded.
-                    Please contact your developer to renew your license and restore access to the application.
-                </p>
-
-                <div style={{ background: 'rgba(255,255,255,0.05)', padding: '2rem', borderRadius: 'var(--radius-md)', border: '1px solid rgba(255,255,255,0.1)', width: '100%', maxWidth: '400px' }}>
-                    <div style={{ fontSize: '0.75rem', fontWeight: '900', letterSpacing: '0.1em', color: 'var(--text-accent)', marginBottom: '1.5rem', textAlign: 'left' }}>CONTACT DEVELOPER</div>
-                    <div style={{ textAlign: 'left', marginBottom: '1.5rem' }}>
-                        <div style={{ fontSize: '1.1rem', fontWeight: '700' }}>Gokul (Developer)</div>
-                        <div style={{ fontSize: '0.9rem', opacity: 0.7, marginTop: '0.5rem' }}>+91 9629180431</div>
-                        <div style={{ fontSize: '0.9rem', opacity: 0.7 }}>yoursxyn@gmail.com</div>
-                    </div>
-                    <button
-                        onClick={() => window.open('https://wa.me/919629180431', '_blank')}
-                        style={{ width: '100%', height: '3.5rem', background: '#25D366', color: 'white', border: 'none', borderRadius: '4px', fontWeight: '800', cursor: 'pointer', letterSpacing: '0.1em' }}
-                    >
-                        WHATSAPP DEVELOPER
-                    </button>
-                    <button
-                        onClick={async () => {
-                            const { signOut } = await import('firebase/auth');
-                            const { auth } = await import('../../services/firebase');
-                            await signOut(auth);
-                        }}
-                        style={{ width: '100%', height: '3.5rem', background: 'transparent', color: 'var(--text-secondary)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '4px', fontWeight: '800', cursor: 'pointer', letterSpacing: '0.1em', marginTop: '1rem' }}
-                    >
-                        LOGOUT
-                    </button>
+                <div>
+                    <h2 style={{ margin: '0 0 0.25rem', fontSize: '1.25rem', fontWeight: '800', color: '#111827' }}>Access Restricted</h2>
+                    <p style={{ margin: '0 0 1.25rem', color: '#6b7280', fontSize: '0.875rem' }}>
+                        You don't have permission to view this page.
+                    </p>
                 </div>
+                <a href={redirectPath}
+                   style={{
+                       padding: '0.6rem 1.5rem', background: '#0d9488', color: 'white',
+                       borderRadius: '10px', textDecoration: 'none', fontWeight: '700',
+                       fontSize: '0.85rem', transition: 'background 0.15s'
+                   }}
+                >
+                    Go to Dashboard
+                </a>
             </div>
         );
-    }
-
-    // If roles are specified, check if user has permission
-    if (allowedRoles && !allowedRoles.includes(userRole)) {
-        return <Navigate to="/" replace />;
     }
 
     return children;

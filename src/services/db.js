@@ -49,7 +49,15 @@ export const createStylistProfile = async (uid, email, name) => {
 export const getStylists = async () => {
     const q = query(collection(db, 'users'), where('role', '==', 'stylist'));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    return snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter(u => 
+            !u.isKiosk && 
+            u.email !== 'hashtagsalon@store.com' && 
+            u.name?.toLowerCase() !== 'stylist' && 
+            u.id !== 'stylist' && 
+            !u.email?.toLowerCase().startsWith('stylist@')
+        );
 };
 
 // --- Reporting ---

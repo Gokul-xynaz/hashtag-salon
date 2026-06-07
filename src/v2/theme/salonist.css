@@ -1,0 +1,168 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   HASHTAG SALON — Salonist V2 Theme
+   Teal/Blue, High Density, SaaS Professional.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.v2-theme {
+  /* Core Palette — Salonist Inspired Teal/Blue */
+  --v2-primary:        #0d9488; /* Teal 600 */
+  --v2-primary-hover:  #0f766e; /* Teal 700 */
+  --v2-primary-muted:  rgba(13, 148, 136, 0.08);
+
+  /* Secondary / Accent */
+  --v2-accent:         #3b82f6; /* Blue 500 */
+  
+  /* Sidebar Layout */
+  --v2-sidebar-bg:     #111827; /* Gray 900 */
+  --v2-sidebar-text:   #9ca3af; /* Gray 400 */
+  --v2-sidebar-active: #ffffff;
+  --v2-sidebar-hover:  #1f2937; /* Gray 800 */
+  --v2-sidebar-width:  240px;
+
+  /* Neutral Scale */
+  --v2-gray-50:  #f9fafb;
+  --v2-gray-100: #f3f4f6;
+  --v2-gray-200: #e5e7eb;
+  --v2-gray-300: #d1d5db;
+  --v2-gray-400: #9ca3af;
+  --v2-gray-500: #6b7280;
+  --v2-gray-800: #1f2937;
+  --v2-gray-900: #111827;
+
+  /* Semantic Surfaces */
+  --v2-bg-main:      #f9fafb;
+  --v2-bg-card:      #ffffff;
+  --v2-bg-header:    #ffffff;
+
+  /* Text */
+  --v2-text-main:    #111827;
+  --v2-text-muted:   #6b7280;
+  
+  /* Borders & Radii */
+  --v2-border:       #e5e7eb;
+  --v2-radius-sm:    6px;
+  --v2-radius-md:    8px;
+  --v2-radius-lg:    12px;
+
+  /* Shadows */
+  --v2-shadow-sm:    0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --v2-shadow-md:    0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+
+  font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+  background-color: var(--v2-bg-main);
+  color: var(--v2-text-main);
+  min-height: 100vh;
+}
+
+/* ─── V2 Layout ─────────────────────────────────────────────────────── */
+.v2-layout-wrapper {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.v2-sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  width: var(--v2-sidebar-width);
+  background-color: var(--v2-sidebar-bg);
+  color: var(--v2-sidebar-text);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  transition: width 0.3s ease;
+  z-index: 50;
+}
+
+.v2-main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.v2-header {
+  height: 64px;
+  background-color: var(--v2-bg-header);
+  border-bottom: 1px solid var(--v2-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.5rem;
+  flex-shrink: 0;
+}
+
+.v2-page-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 2rem;
+}
+
+/* ─── V2 Sidebar Nav ────────────────────────────────────────────────── */
+.v2-brand {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  padding: 0 1.5rem;
+  font-weight: 800;
+  font-size: 1.25rem;
+  color: #ffffff;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  gap: 0.75rem;
+}
+
+.v2-nav-menu {
+  flex: 1;
+  padding: 1rem 0.5rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.v2-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  color: var(--v2-sidebar-text);
+  text-decoration: none;
+  border-radius: var(--v2-radius-md);
+  transition: all 0.2s ease;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.v2-nav-item:hover {
+  background-color: var(--v2-sidebar-hover);
+  color: var(--v2-sidebar-active);
+}
+
+.v2-nav-item.active {
+  background-color: var(--v2-primary);
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: inset 3px 0 0 rgba(255,255,255,0.6), 0 2px 8px rgba(13,148,136,0.35);
+}
+
+.v2-nav-icon {
+  font-size: 1.25rem;
+  opacity: 0.8;
+}
+
+/* ─── V2 UI Components ──────────────────────────────────────────────── */
+.v2-card {
+  background: var(--v2-bg-card);
+  border: 1px solid var(--v2-border);
+  border-radius: var(--v2-radius-md);
+  box-shadow: var(--v2-shadow-sm);
+  padding: 1.5rem;
+}
+
+.v2-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--v2-text-main);
+  margin: 0 0 1.5rem 0;
+}

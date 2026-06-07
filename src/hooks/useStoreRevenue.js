@@ -44,7 +44,13 @@ export function useStoreRevenue(stylistId = null, isGlobal = false) {
             let count = 0;
             snapshot.forEach(doc => {
                 const data = doc.data();
-                const amount = (data.totalAmount || 0);
+                
+                let productTotal = 0;
+                (data.products || []).forEach(p => {
+                    productTotal += (parseFloat(p.price) || 0) * (parseInt(p.qty) || 1);
+                });
+                
+                const amount = Math.max(0, (data.totalAmount || 0) - productTotal);
                 total += amount;
 
                 if (data.paymentType === 'cash') {

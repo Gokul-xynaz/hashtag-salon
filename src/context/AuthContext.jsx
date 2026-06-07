@@ -28,45 +28,41 @@ export function AuthProvider({ children }) {
         }
     };
 
+    const [userPermissions, setUserPermissions] = useState(null); // Granular UI permissions
+
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, async (user) => {
-            console.log("Auth State Changed. User:", user ? user.email : "none");
-
-            if (user) {
-                // Fetch user role from Firestore 'users' collection
-                try {
-                    console.log("Fetching profile for UID:", user.uid);
-
-                    // Create a promise that rejects after 5 seconds
-                    const timeoutPromise = new Promise((_, reject) =>
-                        setTimeout(() => reject(new Error("Firestore Timeout")), 5000)
-                    );
-
-                    // Race the getDoc against the timeout
-                    const userDoc = await Promise.race([
-                        getDoc(doc(db, 'users', user.uid)),
-                        timeoutPromise
-                    ]);
-
-                    if (userDoc.exists()) {
-                        console.log("Profile found. Role:", userDoc.data().role);
-                        setUserRole(userDoc.data().role);
-                    } else {
-                        console.warn("No profile found for UID:", user.uid);
-                        setUserRole('unauthorized');
-                    }
-                } catch (error) {
-                    console.error("AuthContext Profile Fetch Error:", error);
-                    // Still stop loading even if profile fetch fails
-                    setUserRole('error');
-                }
-                setCurrentUser(user);
-            } else {
-                setCurrentUser(null);
-                setUserRole(null);
-            }
-            console.log("Setting loading to false");
+        // Fallback timeout to prevent getting stuck on blue loading screen if Firebase is unreachable
+        const timeoutId = setTimeout(() => {
             setLoading(false);
+        }, 5000);
+
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            clearTimeout(timeoutId);
+            try {
+
+                if (user) {
+                    // Fetch user role from Firestore 'users' collection
+                    try {
+                        const userDoc = await getDoc(doc(db, 'users', user.uid));
+                        if (userDoc.exists()) {
+                            setUserRole(userDoc.data().role);
+                            setUserPermissions(userDoc.data().v2_permissions || null);
+                        } else {
+                            console.warn("Unauthorized access attempt: No profile found for", user.email);
+                            setUserRole('unauthorized');
+                        }
+                    } catch (error) {
+                        console.error("Error fetching user role:", error);
+                        setUserRole('error');
+                    }
+                    setCurrentUser(user);
+                } else {
+                    setCurrentUser(null);
+                    setUserRole(null);
+                }
+            } finally {
+                setLoading(false);
+            }
         });
 
         // Multi-tab sync for selectedStylist
@@ -80,6 +76,7 @@ export function AuthProvider({ children }) {
 
         return () => {
             unsubscribe();
+            clearTimeout(timeoutId);
             window.removeEventListener('storage', handleStorageChange);
         };
     }, []);
@@ -87,11 +84,16 @@ export function AuthProvider({ children }) {
     const value = {
         currentUser,
         userRole,
+        userPermissions,
         selectedStylist,
         selectStylist,
         logout: () => {
-            // We DON'T remove selectedStylist on logout per user preference for high persistence
             signOut(auth);
+            setCurrentUser(null);
+            setUserRole(null);
+            setUserPermissions(null);
+            setSelectedStylist(null);
+            localStorage.removeItem('sota_selected_stylist');
         }
     };
 
