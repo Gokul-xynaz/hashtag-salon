@@ -97,9 +97,11 @@ export function AuthProvider({ children }) {
         }
     };
 
+    const isPublicRoute = typeof window !== 'undefined' && window.location.pathname.startsWith('/v2/book');
+
     return (
         <AuthContext.Provider value={value}>
-            {loading ? (
+            {loading && !isPublicRoute ? (
                 <div style={{
                     height: '100vh',
                     width: '100vw',

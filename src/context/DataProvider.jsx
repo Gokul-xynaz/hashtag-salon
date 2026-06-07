@@ -26,7 +26,9 @@ export function DataProvider({ children }) {
     const { currentUser } = useAuth();
 
     useEffect(() => {
-        if (!currentUser) {
+        const isPublicRoute = typeof window !== 'undefined' && window.location.pathname.startsWith('/v2/book');
+
+        if (!currentUser && !isPublicRoute) {
             // Reset states and STOP loading when logged out
             setServices([]);
             setLoadingServices(false);
@@ -44,6 +46,22 @@ export function DataProvider({ children }) {
             setMemberships([]);
             setLoadingMemberships(false);
             return;
+        }
+
+        // Reset non-essential collections for public booking visitors
+        if (!currentUser && isPublicRoute) {
+            setSettings({ maxDiscount: 50 });
+            setLoadingSettings(false);
+            setOngoingSessions([]);
+            setLoadingSessions(false);
+            setAttendance([]);
+            setLoadingAttendance(false);
+            setPackages([]);
+            setLoadingPackages(false);
+            setMemberships([]);
+            setLoadingMemberships(false);
+            setProducts([]);
+            setLoadingProducts(false);
         }
 
         // 1. Real-time Services
@@ -79,70 +97,78 @@ export function DataProvider({ children }) {
             setLoadingStylists(false);
         });
 
-        // 3. Global Settings
-        const unsubSettings = onSnapshot(doc(db, 'settings', 'salon_config'), (snapshot) => {
-            if (snapshot.exists()) {
-                setSettings(snapshot.data());
-            }
-            setLoadingSettings(false);
-        }, (err) => {
-            console.error("Settings stream error:", err);
-            setLoadingSettings(false);
-        });
+        // Authenticated-only listeners
+        let unsubSettings = () => {};
+        let unsubSessions = () => {};
+        let unsubAttendance = () => {};
+        let unsubProducts = () => {};
+        let unsubPackages = () => {};
+        let unsubMemberships = () => {};
 
-        // 4. Ongoing Sessions (for concurrency)
-        const unsubSessions = onSnapshot(collection(db, 'ongoing_sessions'), (snapshot) => {
-            const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            setOngoingSessions(list);
-            setLoadingSessions(false);
-        }, (err) => {
-            console.error("Sessions stream error:", err);
-            setLoadingSessions(false);
-        });
+        if (currentUser) {
+            // 3. Global Settings
+            unsubSettings = onSnapshot(doc(db, 'settings', 'salon_config'), (snapshot) => {
+                if (snapshot.exists()) {
+                    setSettings(snapshot.data());
+                }
+                setLoadingSettings(false);
+            }, (err) => {
+                console.error("Settings stream error:", err);
+                setLoadingSettings(false);
+            });
 
-        // 5. Attendance (Today's Status)
-        const today = new Date().toLocaleDateString('en-CA');
-        const qAttendance = query(collection(db, 'attendance'), where('date', '==', today));
-        const unsubAttendance = onSnapshot(qAttendance, (snapshot) => {
-            const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            setAttendance(list);
-            setLoadingAttendance(false);
-        }, (err) => {
-            console.error("Attendance stream error:", err);
-            setLoadingAttendance(false);
-        });
+            // 4. Ongoing Sessions (for concurrency)
+            unsubSessions = onSnapshot(collection(db, 'ongoing_sessions'), (snapshot) => {
+                const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                setOngoingSessions(list);
+                setLoadingSessions(false);
+            }, (err) => {
+                console.error("Sessions stream error:", err);
+                setLoadingSessions(false);
+            });
 
+            // 5. Attendance (Today's Status)
+            const today = new Date().toLocaleDateString('en-CA');
+            const qAttendance = query(collection(db, 'attendance'), where('date', '==', today));
+            unsubAttendance = onSnapshot(qAttendance, (snapshot) => {
+                const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                setAttendance(list);
+                setLoadingAttendance(false);
+            }, (err) => {
+                console.error("Attendance stream error:", err);
+                setLoadingAttendance(false);
+            });
 
+            // 7. Real-time Products
+            unsubProducts = onSnapshot(collection(db, 'products'), (snapshot) => {
+                const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                setProducts(list);
+                setLoadingProducts(false);
+            }, (err) => {
+                console.error("Products stream error:", err);
+                setLoadingProducts(false);
+            });
 
-        // 7. Real-time Products
-        const unsubProducts = onSnapshot(collection(db, 'products'), (snapshot) => {
-            const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            setProducts(list);
-            setLoadingProducts(false);
-        }, (err) => {
-            console.error("Products stream error:", err);
-            setLoadingProducts(false);
-        });
+            // 8. Real-time Packages
+            unsubPackages = onSnapshot(collection(db, 'packages'), (snapshot) => {
+                const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                setPackages(list);
+                setLoadingPackages(false);
+            }, (err) => {
+                console.error("Packages stream error:", err);
+                setLoadingPackages(false);
+            });
 
-        // 8. Real-time Packages
-        const unsubPackages = onSnapshot(collection(db, 'packages'), (snapshot) => {
-            const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            setPackages(list);
-            setLoadingPackages(false);
-        }, (err) => {
-            console.error("Packages stream error:", err);
-            setLoadingPackages(false);
-        });
-
-        // 9. Real-time Memberships
-        const unsubMemberships = onSnapshot(collection(db, 'memberships'), (snapshot) => {
-            const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            setMemberships(list);
-            setLoadingMemberships(false);
-        }, (err) => {
-            console.error("Memberships stream error:", err);
-            setLoadingMemberships(false);
-        });
+            // 9. Real-time Memberships
+            unsubMemberships = onSnapshot(collection(db, 'memberships'), (snapshot) => {
+                const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                setMemberships(list);
+                setLoadingMemberships(false);
+            }, (err) => {
+                console.error("Memberships stream error:", err);
+                setLoadingMemberships(false);
+            });
+        }
 
         return () => {
             unsubServices();
@@ -150,7 +176,6 @@ export function DataProvider({ children }) {
             unsubSettings();
             unsubSessions();
             unsubAttendance();
-
             unsubProducts();
             unsubPackages();
             unsubMemberships();
