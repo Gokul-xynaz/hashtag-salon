@@ -241,7 +241,7 @@ export default function Sidebar() {
                 <div style={{ height: '64px', display: 'flex', alignItems: 'center', padding: '0 1rem', gap: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
                     <img src={settings?.logoUrl || "/logo.png"} alt="Logo" style={{ width: '34px', height: '34px', borderRadius: '10px', objectFit: 'cover', flexShrink: 0, boxShadow: '0 4px 12px rgba(13,148,136,0.4)' }} />
                     <div style={{ overflow: 'hidden' }}>
-                        <div style={{ fontWeight: '800', fontSize: '0.9rem', color: '#ffffff', lineHeight: 1.2, letterSpacing: '-0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{settings?.businessName || 'Hashtag Salon'}</div>
+                        <div style={{ fontWeight: '800', fontSize: '0.9rem', color: '#ffffff', lineHeight: 1.2, letterSpacing: '-0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{settings?.businessName || 'Hashtag unisex salon'}</div>
                         <div style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.3)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Management</div>
                     </div>
                     <div style={{ marginLeft: 'auto', fontSize: '0.55rem', background: 'rgba(13,148,136,0.25)', color: '#0d9488', padding: '3px 7px', borderRadius: '6px', fontWeight: '700', letterSpacing: '0.05em', border: '1px solid rgba(13,148,136,0.3)' }}>PRO</div>

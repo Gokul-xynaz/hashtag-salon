@@ -127,7 +127,7 @@ export const triggerAppointmentNotification = async (appointment) => {
         const servicesStr = (appointment.services || []).map(s => s.name).join(', ') || 'salon services';
         const stylistStr = appointment.stylistName || 'our staff';
 
-        let messageText = config.appointmentTemplate || `Hi {{name}}! Your appointment at Hashtag Salon for ${servicesStr} with ${stylistStr} on ${dateStr} at ${timeStr} is officially CONFIRMED!`;
+        let messageText = config.appointmentTemplate || `Hi {{name}}! Your appointment at Hashtag unisex salon for ${servicesStr} with ${stylistStr} on ${dateStr} at ${timeStr} is officially CONFIRMED!`;
         const variables = [clientName, servicesStr, dateStr, timeStr];
 
         await sendNotification(clientPhone, messageText, config.appointmentTemplate, clientName, {
@@ -159,7 +159,7 @@ export const triggerPaymentNotification = async (appointment) => {
         const totalAmountStr = String(appointment.totalAmount);
         const servicesStr = [...(appointment.services || []), ...(appointment.products || [])].map(s => s.name).join(', ') || 'salon services';
 
-        let messageText = config.paymentTemplate || `Hi {{name}}! Thank you for visiting Hashtag Salon. Your payment of ₹${totalAmountStr} for ${servicesStr} was successful. We hope to see you again soon!`;
+        let messageText = config.paymentTemplate || `Hi {{name}}! Thank you for visiting Hashtag unisex salon. Your payment of ₹${totalAmountStr} for ${servicesStr} was successful. We hope to see you again soon!`;
         const variables = [clientName, totalAmountStr, servicesStr];
 
         await sendNotification(clientPhone, messageText, config.paymentTemplate, clientName, {

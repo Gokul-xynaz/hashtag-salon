@@ -229,7 +229,7 @@ export default function OnlineBooking() {
             <div className="v2-order-panel">
                 <div style={{ padding:'1.5rem', borderBottom:'1px solid var(--v2-border)', background:'var(--v2-bg-main)' }}>
                     <h3 style={{ fontSize:'1.15rem', fontWeight:800, color:'var(--v2-text-main)', margin:0, letterSpacing:'-0.02em' }}>Order Summary</h3>
-                    <p style={{ fontSize:'0.8rem', color:'var(--v2-text-muted)', margin:'0.2rem 0 0' }}>Hashtag Salon</p>
+                    <p style={{ fontSize:'0.8rem', color:'var(--v2-text-muted)', margin:'0.2rem 0 0' }}>Hashtag unisex salon</p>
                 </div>
 
                 {cart.length > 0 ? (
@@ -555,7 +555,7 @@ export default function OnlineBooking() {
         <div className="v2-booking-root">
             <header className="v2-booking-header">
                 <div className="v2-booking-header-inner" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'center' }}>
-                    <div className="v2-logo" style={{ lineHeight: 1.1 }}>HASHTAG SALON</div>
+                    <div className="v2-logo" style={{ lineHeight: 1.1 }}>HASHTAG UNISEX SALON</div>
                     <span style={{ fontSize: '0.62rem', color: 'var(--v2-text-muted)', fontWeight: 600, marginTop: '2px', letterSpacing: '0.04em', lineHeight: 1 }}>
                         powered by <a href="https://www.yoursxyn.com" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--v2-primary)', textDecoration: 'none', fontWeight: 700 }}>XYN</a>
                     </span>
@@ -596,7 +596,7 @@ export default function OnlineBooking() {
 
             <footer className="v2-booking-footer">
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
-                    <span>HASHTAG SALON – BOOKING V2</span>
+                    <span>HASHTAG UNISEX SALON – BOOKING V2</span>
                     <span style={{ fontSize: '0.62rem', color: 'var(--v2-text-muted)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'none' }}>
                         powered by <a href="https://www.yoursxyn.com" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--v2-primary)', textDecoration: 'none', fontWeight: 700 }}>XYN</a>
                     </span>

@@ -9,13 +9,13 @@ export default function BusinessDetails() {
     const fileInputRef = useRef(null);
     
     const [formData, setFormData] = useState({
-        businessName: 'Hashtag Salon',
+        businessName: 'Hashtag unisex salon',
         email: 'hello@hashtagsalon.com',
-        phone: '9876543210',
+        phone: '9952618995',
         website: 'www.hashtagsalon.com',
-        address: '123 Beauty Avenue, Style District',
-        city: 'Mumbai',
-        zip: '400001',
+        address: '376, 3A1, Rabindranath Tagore Rd, Maniyakarampalayam, Ganapathy',
+        city: 'Coimbatore',
+        zip: '641006',
         country: 'India',
         currency: 'INR (₹)',
         timezone: 'Asia/Kolkata',

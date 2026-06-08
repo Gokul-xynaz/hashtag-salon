@@ -4,9 +4,9 @@ const fmt = (v) => new Intl.NumberFormat('en-IN', { style: 'currency', currency:
 
 export default function ReceiptModal({ bill, onClose, businessInfo = {} }) {
     const receiptRef = useRef();
-    const salonName = businessInfo.name || 'Hashtag Salon';
-    const salonSub = businessInfo.subtitle || 'Professional Studio';
-    const salonAddress = businessInfo.address || 'CARMEL building, 90, Government Arts College Rd,\nnear Kg hospital parking, Gopalapuram,\nCoimbatore, Tamil Nadu 641018';
+    const salonName = businessInfo.name || 'Hashtag unisex salon';
+    const salonSub = businessInfo.subtitle || '';
+    const salonAddress = businessInfo.address || '376, 3A1, Rabindranath Tagore Rd,\nManiyakarampalayam, Ganapathy,\nCoimbatore, Tamil Nadu 641006';
     const salonPhone = businessInfo.phone || '+91 9952618995';
     const salonGST = businessInfo.gst || '33DLWPM2263M1ZG';
     const insta = businessInfo.insta || '@hashtagsalon';
@@ -108,7 +108,7 @@ export default function ReceiptModal({ bill, onClose, businessInfo = {} }) {
                         
                         <div style={{ textAlign: 'center', marginBottom: '16px' }}>
                             <div style={{ fontSize: '20px', fontWeight: 'bold', letterSpacing: '1px' }}>{salonName}</div>
-                            <div style={{ fontWeight: 'bold', marginTop: '4px' }}>{salonSub}</div>
+                            {salonSub && <div style={{ fontWeight: 'bold', marginTop: '4px' }}>{salonSub}</div>}
                             <div style={{ marginTop: '8px', whiteSpace: 'pre-line', lineHeight: '1.4' }}>{salonAddress}</div>
                             <div style={{ marginTop: '8px', fontWeight: 'bold' }}>Ph: {salonPhone}</div>
                             <div style={{ fontWeight: 'bold' }}>GSTIN: {salonGST}</div>
