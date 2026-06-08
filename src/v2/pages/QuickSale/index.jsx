@@ -482,7 +482,7 @@ export default function V2QuickSale() {
                     date: new Date().toISOString(),
                     clientName: selectedClient?.name || (isWalkin ? 'Walk-in' : clientSearch || 'Walk-in'),
                     clientPhone: selectedClient?.phone || 'NA',
-                    stylistName: primaryStylist?.name || 'Unknown',
+                    stylistName: combinedStylistName || 'Unknown',
                     invoiceId: billRef.id
                 };
 

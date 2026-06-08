@@ -86,6 +86,52 @@ export const REPORTS = [
   },
 
   {
+    id: 'card-upi-summary',
+    title: 'Card / UPI Sales Summary',
+    description: 'Comprehensive summary of card, UPI, and online sales, ignoring cash transactions.',
+    category: 'financial',
+    icon: 'credit-card',
+    columns: [
+      { key: 'date',         label: 'Date' },
+      { key: 'time',         label: 'Time' },
+      { key: 'invoiceId',    label: 'Invoice #' },
+      { key: 'clientName',   label: 'Client' },
+      { key: 'clientPhone',  label: 'Phone' },
+      { key: 'stylistName',  label: 'Staff' },
+      { key: 'services',     label: 'Services' },
+      { key: 'paymentType',  label: 'Payment', badge: true },
+      { key: 'totalAmount',  label: 'Amount',   format: 'currency', highlight: true },
+    ],
+    transform: (appointments) =>
+      appointments
+        .filter(a => 
+          (a.status || 'completed').toLowerCase() === 'completed' &&
+          ['card', 'upi', 'online'].includes((a.paymentType || '').toLowerCase())
+        )
+        .map(a => ({
+          date:        fmtDate(a.timestamp),
+          time:        fmtTime(a.timestamp),
+          invoiceId:   shortId(a.id),
+          clientName:  a.clientName  || 'Walk-in',
+          clientPhone: String(a.clientPhone || '—'),
+          stylistName: a.stylistName || '—',
+          services:    svcList(a),
+          paymentType: (a.paymentType || 'card').toUpperCase(),
+          totalAmount: getSalonAmount(a),
+        })),
+    summaryCards: [
+      { key: 'totalRevenue',  label: 'Card/UPI Revenue', format: 'currency', color: '#10b981' },
+      { key: 'totalBills',    label: 'Total Bills',      format: 'number',   color: '' },
+      { key: 'avgBill',       label: 'Avg Bill Value',   format: 'currency', color: '#3b82f6' },
+    ],
+    summarize: (rows) => ({
+      totalRevenue:  rows.reduce((s, r) => s + (r.totalAmount  || 0), 0),
+      totalBills:    rows.length,
+      avgBill:       rows.length ? rows.reduce((s, r) => s + (r.totalAmount || 0), 0) / rows.length : 0,
+    }),
+  },
+
+  {
     id: 'cancelled-bills',
     title: 'Cancelled / Void Bills',
     description: 'All voided or cancelled invoices. Use this to track revenue leakage.',
