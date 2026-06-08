@@ -9,7 +9,7 @@ export default function ReceiptModal({ bill, onClose, businessInfo = {} }) {
     const salonAddress = businessInfo.address || '376, 3A1, Rabindranath Tagore Rd,\nManiyakarampalayam, Ganapathy,\nCoimbatore, Tamil Nadu 641006';
     const salonPhone = businessInfo.phone || '+91 9952618995';
     const salonGST = businessInfo.gst || '33DLWPM2263M1ZG';
-    const insta = businessInfo.insta || '@hashtagsalon';
+    const insta = businessInfo.insta || '@hashtagfamilysalon';
 
     const allItems = [
         ...(bill?.services || []),
@@ -112,7 +112,7 @@ export default function ReceiptModal({ bill, onClose, businessInfo = {} }) {
                             <div style={{ marginTop: '8px', whiteSpace: 'pre-line', lineHeight: '1.4' }}>{salonAddress}</div>
                             <div style={{ marginTop: '8px', fontWeight: 'bold' }}>Ph: {salonPhone}</div>
                             <div style={{ fontWeight: 'bold' }}>GSTIN: {salonGST}</div>
-                            <div style={{ marginTop: '4px' }}>📷 {insta}</div>
+                            <div style={{ marginTop: '4px' }}>📷 <a href={`https://www.instagram.com/${insta.replace('@', '')}`} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>{insta}</a></div>
                         </div>
 
                         <div className="dashed-line" style={{ borderTop: '1px dashed #000', margin: '16px 0' }}></div>
