@@ -328,23 +328,24 @@ export default function V2QuickSale() {
         isProcessingRef.current = true;
         setIsProcessing(true);
         let billId = '';
+        const allStaffIds = [...new Set([
+            ...serviceRows.filter(r => r.name && r.staffId).map(r => r.staffId),
+            ...productRows.filter(r => r.name && r.staffId).map(r => r.staffId)
+        ])];
+        let primaryStylistId = '';
+        let combinedStylistName = '';
+        if (allStaffIds.length > 1) {
+            primaryStylistId = 'multiple';
+            combinedStylistName = allStaffIds.map(id => stylists?.find(s => s.id === id)?.name || '').filter(Boolean).join(', ');
+        } else if (allStaffIds.length === 1) {
+            primaryStylistId = allStaffIds[0];
+            combinedStylistName = stylists?.find(s => s.id === allStaffIds[0])?.name || '';
+        }
+
         try {
             await runTransaction(db, async (tx) => {
                 const billRef = doc(collection(db, 'appointments'));
                 billId = billRef.id;
-                const allStaffIds = [...new Set([
-                    ...serviceRows.filter(r => r.name && r.staffId).map(r => r.staffId),
-                    ...productRows.filter(r => r.name && r.staffId).map(r => r.staffId)
-                ])];
-                let primaryStylistId = '';
-                let combinedStylistName = '';
-                if (allStaffIds.length > 1) {
-                    primaryStylistId = 'multiple';
-                    combinedStylistName = allStaffIds.map(id => stylists?.find(s => s.id === id)?.name || '').filter(Boolean).join(', ');
-                } else if (allStaffIds.length === 1) {
-                    primaryStylistId = allStaffIds[0];
-                    combinedStylistName = stylists?.find(s => s.id === allStaffIds[0])?.name || '';
-                }
 
                 // Referral lookup and verification
                 let referrerRef = null;
@@ -392,6 +393,7 @@ export default function V2QuickSale() {
                     isLocked: true, // Immutable Lock Protocol
                     referredBy: referredByPhone || null,
                     timestamp: serverTimestamp(),
+                    billDate: billDate, // User-selected date (YYYY-MM-DD)
                     v2: true,
                     quickSale: true
                 };
@@ -528,7 +530,7 @@ export default function V2QuickSale() {
                 dueAmount,
                 paymentType: payMode,
                 notes,
-                timestamp: new Date()
+                timestamp: billDate ? new Date(billDate + 'T12:00:00') : new Date()
             };
             setLastBill(billSnapshot);
             setShowReceiptModal(true); // Open the sleek preview modal instead of raw print
@@ -558,12 +560,13 @@ export default function V2QuickSale() {
             setAppliedGiftCard(null);
             setNotes('');
             setBypassAuthorized(false); // Reset bypass for next sale
+            setBillDate(new Date().toISOString().split('T')[0]); // Reset date to today for next bill
         } catch (err) {
             logError('QuickSale Checkout', err, {
                 clientPhone: selectedClient?.phone,
-                billTotal: getSubtotal()
+                billTotal: subtotal
             });
-            alert(err.message);
+            alert('Checkout failed: ' + err.message);
         } finally {
             setIsProcessing(false);
             isProcessingRef.current = false;

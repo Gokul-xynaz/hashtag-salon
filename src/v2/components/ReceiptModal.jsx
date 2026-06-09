@@ -56,7 +56,10 @@ export default function ReceiptModal({ bill, onClose, businessInfo = {} }) {
         }
         
         let text = `*${salonName}*\n${salonSub}\n\n`;
-        text += `*INVOICE:*\nDate: ${new Date(bill.timestamp?.seconds ? bill.timestamp.seconds * 1000 : bill.timestamp).toLocaleString('en-IN')}\n`;
+        const waDateStr = bill?.billDate
+            ? new Date(bill.billDate + 'T12:00:00').toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+            : new Date(bill.timestamp?.seconds ? bill.timestamp.seconds * 1000 : bill.timestamp).toLocaleString('en-IN');
+        text += `*INVOICE:*\nDate: ${waDateStr}\n`;
         text += `Client: ${bill.clientName || 'Walk-in'}\n`;
         text += `\n*ITEMS:*\n`;
         allItems.forEach(item => {
@@ -76,9 +79,16 @@ export default function ReceiptModal({ bill, onClose, businessInfo = {} }) {
 
     if (!bill) return null;
 
-    const dateStr = new Date(bill.timestamp?.seconds ? bill.timestamp.seconds * 1000 : bill.timestamp).toLocaleString('en-IN', {
-        day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
-    });
+    const dateStr = (() => {
+        // Prefer user-selected billDate (YYYY-MM-DD string) stored on the bill
+        if (bill?.billDate) {
+            const d = new Date(bill.billDate + 'T12:00:00');
+            return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+        }
+        const ts = bill?.timestamp;
+        const d = ts?.seconds ? new Date(ts.seconds * 1000) : new Date(ts);
+        return d.toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    })();
 
     return (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(31, 41, 55, 0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}>
