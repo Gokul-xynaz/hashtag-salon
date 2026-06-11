@@ -1,8 +1,10 @@
 /* ═══════════════════════════════════════════════════════════════════════
    HASHTAG SALON — Enterprise Design System v2.0
    Minimalist. Monochromatic. Premium.
-   Inspired by: Linear, Vercel, Notion
+   Inspired by: Linear, Vercel, Notion, Stripe
    ═══════════════════════════════════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
 /* ─── DESIGN TOKENS ─────────────────────────────────────────────────── */
 :root {
@@ -64,7 +66,7 @@
 
   /* Typography */
   --font-main:    'Inter', system-ui, -apple-system, sans-serif;
-  --font-heading: 'Manrope', 'Inter', sans-serif;
+  --font-heading: 'Inter', sans-serif;
   --font-mono:    'JetBrains Mono', 'SF Mono', monospace;
 
   /* Radii */
@@ -193,26 +195,25 @@ button:active {
 
 /* Primary — The Hero Button */
 .btn-primary {
-  background: var(--primary);
-  color: var(--text-inverse);
+  background: var(--v2-primary, var(--primary));
+  color: #ffffff;
   padding: 0.75rem 1.5rem;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   font-size: 0.8rem;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1),
-              inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: all var(--duration-fast) var(--ease-smooth);
 }
 
 .btn-primary:hover {
-  background: var(--primary-hover);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15),
-              inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  color: var(--text-inverse);
+  background: var(--v2-primary-hover, var(--primary-hover));
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
 }
 
 .btn-primary:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline: none;
+  box-shadow: 0 0 0 3px var(--v2-primary-light, rgba(13, 148, 136, 0.3));
 }
 
 /* Secondary — Quiet Confidence */
@@ -341,10 +342,10 @@ button:active {
 .form-select {
   width: 100%;
   padding: 0.65rem 0.85rem;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-strong);
+  background: #ffffff;
+  border: 1px solid var(--v2-border, var(--border-strong));
   border-radius: var(--radius-sm);
-  color: var(--text-primary);
+  color: var(--v2-text-main, var(--text-primary));
   font-size: 0.95rem;
   font-family: var(--font-main);
   transition: border-color var(--duration-fast) var(--ease-smooth),
@@ -352,14 +353,23 @@ button:active {
   outline: none;
 }
 
+.form-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.85rem center;
+  background-size: 16px;
+  padding-right: 2.5rem;
+}
+
 .form-input::placeholder {
-  color: var(--text-tertiary);
+  color: var(--v2-text-muted, var(--text-tertiary));
 }
 
 .form-input:focus,
 .form-select:focus {
-  border-color: var(--gray-800);
-  box-shadow: 0 0 0 3px var(--primary-muted);
+  border-color: var(--v2-primary, var(--gray-800));
+  box-shadow: 0 0 0 3px var(--v2-primary-light, var(--primary-muted));
 }
 
 /* ─── TABLES ────────────────────────────────────────────────────────── */
@@ -370,33 +380,32 @@ table {
 
 th {
   text-align: left;
-  font-size: 0.7rem;
+  font-size: 0.6rem;
   font-family: var(--font-heading);
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--text-secondary);
-  padding: 0.75rem 0;
-  border-bottom: 1px solid var(--border-strong);
-  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--v2-text-sub, var(--text-secondary));
+  background-color: #fafbfc;
+  padding: 0.65rem 1rem;
+  border-bottom: 1px solid var(--v2-border, var(--border-strong));
+  font-weight: 600;
 }
 
 td {
-  padding: 1rem 0;
-  border-bottom: 1px solid var(--border-subtle);
-  font-size: 0.9rem;
+  padding: 0.65rem 1rem;
+  border-bottom: 1px solid var(--v2-border, var(--border-subtle));
+  font-size: 0.85rem;
+  color: var(--v2-text-main, var(--text-primary));
 }
 
-/* Zebra striping */
-tbody tr:nth-child(even) {
-  background: var(--bg-hover);
-}
+/* Zebra striping removed in favor of hover highlights */
 
 tbody tr {
-  transition: background var(--duration-fast) var(--ease-smooth);
+  transition: background 0.1s;
 }
 
 tbody tr:hover {
-  background: var(--bg-active);
+  background: #f8fafc;
 }
 
 /* ─── UTILITIES ─────────────────────────────────────────────────────── */
@@ -416,23 +425,21 @@ tbody tr:hover {
 .badge {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0.2rem 0.6rem;
-  border-radius: var(--radius-full);
-  font-size: 0.6rem;
-  font-weight: 800;
-  font-family: var(--font-heading);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  justify-content: center;
+  padding: 0.18rem 0.55rem;
+  border-radius: 20px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  font-family: var(--font-main);
   white-space: nowrap;
 }
 
-.badge-default { background: var(--gray-100); color: var(--gray-600); }
-.badge-success { background: var(--success-muted); color: var(--success); }
-.badge-danger  { background: var(--danger-muted);  color: var(--danger);  }
-.badge-warning { background: var(--warning-muted); color: var(--warning); }
-.badge-info    { background: var(--info-muted);    color: var(--info);    }
-.badge-accent  { background: var(--accent-muted);  color: var(--accent);  }
+.badge-default { background: #f1f5f9; color: #64748b; }
+.badge-success { background: rgba(22, 163, 74, 0.1); color: var(--v2-green, #16a34a); }
+.badge-danger  { background: rgba(220, 38, 38, 0.1);  color: var(--v2-red, #dc2626);  }
+.badge-warning { background: rgba(217, 119, 6, 0.1); color: var(--v2-amber, #d97706); }
+.badge-info    { background: rgba(37, 99, 235, 0.1);    color: var(--v2-blue, #2563eb);    }
+.badge-accent  { background: rgba(124, 58, 237, 0.1);  color: var(--v2-purple, #7c3aed);  }
 
 /* Divider — Elegant Separator */
 .divider {

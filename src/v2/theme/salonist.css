@@ -4,51 +4,50 @@
    ═══════════════════════════════════════════════════════════════════════ */
 
 .v2-theme {
-  /* Core Palette — Salonist Inspired Teal/Blue */
-  --v2-primary:        #0d9488; /* Teal 600 */
-  --v2-primary-hover:  #0f766e; /* Teal 700 */
+  /* Stripe-Like Premium Aesthetic */
+  --v2-bg:             #f8fafc;
+  --v2-card:           #ffffff;
+  --v2-border:         #e2e8f0;
+  --v2-border-light:   #f1f5f9;
+  
+  /* Text */
+  --v2-text-main:      #0f172a;
+  --v2-text-sub:       #64748b;
+  --v2-text-muted:     #94a3b8;
+  
+  /* Accent States (Clean, Desaturated HSL/HEX) */
+  --v2-primary:        #0d9488;
+  --v2-primary-hover:  #0f766e;
   --v2-primary-muted:  rgba(13, 148, 136, 0.08);
-
-  /* Secondary / Accent */
-  --v2-accent:         #3b82f6; /* Blue 500 */
+  --v2-primary-light:  rgba(13, 148, 136, 0.3);
+  --v2-purple:         #7c3aed;
+  --v2-green:          #16a34a;
+  --v2-amber:          #d97706;
+  --v2-red:            #dc2626;
+  --v2-blue:           #2563eb;
   
   /* Sidebar Layout */
-  --v2-sidebar-bg:     #111827; /* Gray 900 */
-  --v2-sidebar-text:   #9ca3af; /* Gray 400 */
+  --v2-sidebar-bg:     #0f172a;
+  --v2-sidebar-text:   #94a3b8;
   --v2-sidebar-active: #ffffff;
-  --v2-sidebar-hover:  #1f2937; /* Gray 800 */
+  --v2-sidebar-hover:  #1e293b;
   --v2-sidebar-width:  240px;
 
-  /* Neutral Scale */
-  --v2-gray-50:  #f9fafb;
-  --v2-gray-100: #f3f4f6;
-  --v2-gray-200: #e5e7eb;
-  --v2-gray-300: #d1d5db;
-  --v2-gray-400: #9ca3af;
-  --v2-gray-500: #6b7280;
-  --v2-gray-800: #1f2937;
-  --v2-gray-900: #111827;
-
-  /* Semantic Surfaces */
-  --v2-bg-main:      #f9fafb;
-  --v2-bg-card:      #ffffff;
+  /* Aliases for backwards compatibility temporarily */
+  --v2-bg-main:      var(--v2-bg);
+  --v2-bg-card:      var(--v2-card);
   --v2-bg-header:    #ffffff;
 
-  /* Text */
-  --v2-text-main:    #111827;
-  --v2-text-muted:   #6b7280;
-  
-  /* Borders & Radii */
-  --v2-border:       #e5e7eb;
+  /* Radii */
   --v2-radius-sm:    6px;
   --v2-radius-md:    8px;
   --v2-radius-lg:    12px;
 
   /* Shadows */
-  --v2-shadow-sm:    0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --v2-shadow-md:    0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --v2-shadow-sm:    0 1px 2px rgba(0,0,0,0.04);
+  --v2-shadow-md:    0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
 
-  font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   background-color: var(--v2-bg-main);
   color: var(--v2-text-main);
   min-height: 100vh;

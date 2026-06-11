@@ -273,7 +273,12 @@ export default function Sidebar() {
                         <img src={settings?.logoUrl || "/logo.png"} alt="Logo" style={{ width: '40px', height: '40px', borderRadius: '10px', objectFit: 'cover', flexShrink: 0, boxShadow: '0 4px 12px rgba(13,148,136,0.4)' }} />
                         <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontWeight: '700', fontSize: '0.85rem', color: '#ffffff', marginBottom: '0.1rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{settings?.businessName || 'Business Settings'}</div>
-                            <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: '500' }}>Manage Business</div>
+                            <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: '500', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                Manage Business
+                            </div>
+                            <div style={{ fontSize: '0.65rem', color: 'var(--v2-primary)', fontWeight: '600', marginTop: '1px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                Welcome {userRole === 'admin' ? 'Admin' : 'Stylist'}
+                            </div>
                         </div>
                     </div>
                     <button onClick={logout} className="v2-logout-btn" style={{ marginTop: '0.5rem', width: '100%', padding: '0.75rem', background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '10px', color: 'rgba(255,255,255,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', cursor: 'pointer', transition: 'all 0.2s ease', fontWeight: '600', fontSize: '0.8rem' }} onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)'; e.currentTarget.style.color = '#ef4444'; }} onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = 'rgba(255,255,255,0.6)'; }}>
