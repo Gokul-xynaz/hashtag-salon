@@ -59,6 +59,8 @@ export default function IntegrationsSettings() {
     const [testing, setTesting]   = useState(false);
     const [testPhone, setTestPhone] = useState('');
     const [testResult, setTestResult] = useState(null); // { ok: bool, msg: string }
+    const [metaTemplates, setMetaTemplates] = useState([]);
+    const [fetchingTemplates, setFetchingTemplates] = useState(false);
 
     const [config, setConfig] = useState({
         whatsappMode: 'web',
@@ -83,20 +85,66 @@ export default function IntegrationsSettings() {
         autoSendAlerts: true,
     });
 
+    const fetchMetaTemplates = async (phoneId, token, showAlertOnError = false) => {
+        const pId = phoneId || config.metaPhoneNumberId;
+        const tok = token || config.metaAccessToken;
+        if (!pId || !tok) {
+            if (showAlertOnError) alert('Please set Phone Number ID and Access Token first.');
+            return;
+        }
+
+        setFetchingTemplates(true);
+        try {
+            // Step 1: Get WABA ID from Phone ID
+            const phoneRes = await fetch(`https://graph.facebook.com/v22.0/${pId}?fields=whatsapp_business_account&access_token=${tok}`);
+            if (!phoneRes.ok) {
+                const errData = await phoneRes.json();
+                throw new Error(errData.error?.message || 'Failed to fetch WABA ID');
+            }
+            const phoneData = await phoneRes.json();
+            const wabaId = phoneData.whatsapp_business_account?.id;
+            if (!wabaId) throw new Error('Could not find WhatsApp Business Account linked to this Phone ID');
+
+            // Step 2: Get Templates using WABA ID
+            const templatesRes = await fetch(`https://graph.facebook.com/v22.0/${wabaId}/message_templates?access_token=${tok}`);
+            if (!templatesRes.ok) {
+                const errData = await templatesRes.json();
+                throw new Error(errData.error?.message || 'Failed to fetch templates');
+            }
+            const templatesData = await templatesRes.json();
+            const approved = (templatesData.data || []).filter(t => t.status === 'APPROVED');
+            setMetaTemplates(approved);
+            if (showAlertOnError) alert(`✅ Synced ${approved.length} approved templates!`);
+        } catch (e) {
+            console.error('Error fetching Meta templates:', e);
+            if (showAlertOnError) alert('❌ Template Sync Failed: ' + e.message);
+        } finally {
+            setFetchingTemplates(false);
+        }
+    };
+
     useEffect(() => {
-        const fetch = async () => {
+        const fetchConfig = async () => {
             try {
                 const snap = await getDoc(doc(db, 'settings', 'integrations'));
                 if (snap.exists()) {
                     const data = snap.data();
-                    if (data.metaAccessToken) data.metaAccessToken = decrypt(data.metaAccessToken);
+                    let decryptedAccessToken = '';
+                    if (data.metaAccessToken) {
+                        decryptedAccessToken = decrypt(data.metaAccessToken);
+                        data.metaAccessToken = decryptedAccessToken;
+                    }
                     if (data.ultramsgToken) data.ultramsgToken = decrypt(data.ultramsgToken);
                     setConfig(prev => ({ ...prev, ...data }));
+
+                    if (data.whatsappMode === 'meta' && data.metaPhoneNumberId && decryptedAccessToken) {
+                        fetchMetaTemplates(data.metaPhoneNumberId, decryptedAccessToken);
+                    }
                 }
             } catch (e) { console.error(e); }
             finally { setLoading(false); }
         };
-        fetch();
+        fetchConfig();
     }, []);
 
     const upd = (key, val) => setConfig(prev => ({ ...prev, [key]: val }));
@@ -342,9 +390,21 @@ export default function IntegrationsSettings() {
                                 )}
                             </div>
                         </div>
-                        <a href="https://business.facebook.com/latest/whatsapp_manager" target="_blank" rel="noreferrer" style={{ fontSize: '0.75rem', color: 'var(--v2-primary)', fontWeight: '600', textDecoration: 'none' }}>
-                            🔗 Open Meta WhatsApp Manager →
-                        </a>
+                        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginTop: '0.75rem' }}>
+                            <a href="https://business.facebook.com/latest/whatsapp_manager" target="_blank" rel="noreferrer" style={{ fontSize: '0.75rem', color: 'var(--v2-primary)', fontWeight: '600', textDecoration: 'none' }}>
+                                🔗 Open Meta WhatsApp Manager →
+                            </a>
+                            {config.metaPhoneNumberId && config.metaAccessToken && (
+                                <button
+                                    type="button"
+                                    onClick={() => fetchMetaTemplates(null, null, true)}
+                                    disabled={fetchingTemplates}
+                                    style={{ marginLeft: 'auto', padding: '0.45rem 1rem', fontSize: '0.72rem', background: '#e2e8f0', color: '#334155', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                                >
+                                    {fetchingTemplates ? '⏳ Syncing Templates...' : '🔄 Sync Templates'}
+                                </button>
+                            )}
+                        </div>
                     </div>
                 )}
 
@@ -418,14 +478,72 @@ export default function IntegrationsSettings() {
                                 </div>
                                 <div style={{ fontSize: '0.75rem', color: 'var(--v2-text-muted)', marginBottom: config[t.id] ? '0.75rem' : 0 }}>{t.desc}</div>
                                 {config[t.id] && (
-                                    <div style={{ animation: 'fadeSlideIn 0.2s ease' }}>
-                                        <input
-                                            type="text"
-                                            value={config[t.templateKey] || ''}
-                                            onChange={e => upd(t.templateKey, e.target.value)}
-                                            placeholder={config.whatsappMode === 'meta' ? 'Template name (e.g. appointment_confirm)' : 'Message text to send'}
-                                            style={{ padding: '0.6rem 0.85rem', border: '1px solid #86efac', borderRadius: '7px', width: '100%', fontSize: '0.85rem', outline: 'none', background: 'white', boxSizing: 'border-box' }}
-                                        />
+                                    <div style={{ animation: 'fadeSlideIn 0.2s ease', marginTop: '0.5rem' }}>
+                                        {config.whatsappMode === 'meta' ? (
+                                            metaTemplates.length > 0 ? (
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                                                    <select
+                                                        value={config[t.templateKey] || ''}
+                                                        onChange={e => upd(t.templateKey, e.target.value)}
+                                                        style={{ width: '100%', padding: '0.6rem 0.85rem', border: '1px solid #86efac', borderRadius: '7px', fontSize: '0.85rem', outline: 'none', background: 'white', cursor: 'pointer', boxSizing: 'border-box' }}
+                                                    >
+                                                        <option value="">-- Select Approved Meta Template --</option>
+                                                        {metaTemplates.map(tmpl => (
+                                                            <option key={tmpl.name} value={tmpl.name}>
+                                                                {tmpl.name} ({tmpl.language}) [{tmpl.category}]
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                    <div style={{ fontSize: '0.72rem', color: 'var(--v2-text-sub)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                        <span>Selected: <strong>{config[t.templateKey] || 'None'}</strong></span>
+                                                        <button 
+                                                            type="button" 
+                                                            onClick={() => {
+                                                                const manual = prompt('Enter Meta Template name manually:', config[t.templateKey] || '');
+                                                                if (manual !== null) upd(t.templateKey, manual);
+                                                            }}
+                                                            style={{ background: 'none', border: 'none', color: 'var(--v2-primary)', cursor: 'pointer', padding: 0, fontSize: '0.7rem', fontWeight: '700' }}
+                                                        >
+                                                            ✍️ Edit Manually
+                                                        </button>
+                                                    </div>
+                                                    {(() => {
+                                                        const tmpl = metaTemplates.find(x => x.name === config[t.templateKey]);
+                                                        const bodyComp = tmpl?.components?.find(c => c.type === 'BODY' || c.type === 'body');
+                                                        if (bodyComp?.text) {
+                                                            return (
+                                                                <div style={{ background: '#f1f5f9', padding: '0.6rem 0.85rem', borderRadius: '6px', fontSize: '0.75rem', color: 'var(--v2-text-sub)', borderLeft: '3px solid var(--v2-primary)', marginTop: '0.2rem', whiteSpace: 'pre-wrap' }}>
+                                                                    <strong>Template Text Preview:</strong>
+                                                                    <p style={{ margin: '0.25rem 0 0', fontFamily: 'monospace', color: 'var(--v2-text-main)' }}>{bodyComp.text}</p>
+                                                                </div>
+                                                            );
+                                                        }
+                                                        return null;
+                                                    })()}
+                                                </div>
+                                            ) : (
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                                    <input
+                                                        type="text"
+                                                        value={config[t.templateKey] || ''}
+                                                        onChange={e => upd(t.templateKey, e.target.value)}
+                                                        placeholder="Enter approved Meta template name (e.g. appointment_confirm)"
+                                                        style={{ padding: '0.6rem 0.85rem', border: '1px solid #86efac', borderRadius: '7px', width: '100%', fontSize: '0.85rem', outline: 'none', background: 'white', boxSizing: 'border-box' }}
+                                                    />
+                                                    <span style={{ fontSize: '0.68rem', color: 'var(--v2-text-muted)' }}>
+                                                        No templates loaded. Enter manually or click <strong>Sync Templates</strong> above.
+                                                    </span>
+                                                </div>
+                                            )
+                                        ) : (
+                                            <input
+                                                type="text"
+                                                value={config[t.templateKey] || ''}
+                                                onChange={e => upd(t.templateKey, e.target.value)}
+                                                placeholder="Message text to send"
+                                                style={{ padding: '0.6rem 0.85rem', border: '1px solid #86efac', borderRadius: '7px', width: '100%', fontSize: '0.85rem', outline: 'none', background: 'white', boxSizing: 'border-box' }}
+                                            />
+                                        )}
                                     </div>
                                 )}
                             </div>
