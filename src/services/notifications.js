@@ -58,7 +58,7 @@ export const sendNotification = async (clientPhone, messageText, templateName = 
                 type: 'template',
                 template: {
                     name: templateName || config.appointmentTemplate || 'hello_world',
-                    language: { code: 'en_US' }
+                    language: { code: params.languageCode || 'en_US' }
                 }
             };
 
@@ -129,13 +129,15 @@ export const triggerAppointmentNotification = async (appointment) => {
 
         let messageText = config.appointmentTemplate || `Hi {{name}}! Your appointment at Hashtag unisex salon for ${servicesStr} with ${stylistStr} on ${dateStr} at ${timeStr} is officially CONFIRMED!`;
         const variables = [clientName, servicesStr, dateStr, timeStr];
+        const langCode = config.appointmentTemplateLanguage || 'en_US';
 
         await sendNotification(clientPhone, messageText, config.appointmentTemplate, clientName, {
             service: servicesStr,
             date: dateStr,
             time: timeStr,
             stylist: stylistStr,
-            variables
+            variables,
+            languageCode: langCode
         });
     } catch (error) {
         console.error("Failed to trigger appointment notification:", error);
@@ -161,11 +163,13 @@ export const triggerPaymentNotification = async (appointment) => {
 
         let messageText = config.paymentTemplate || `Hi {{name}}! Thank you for visiting Hashtag unisex salon. Your payment of ₹${totalAmountStr} for ${servicesStr} was successful. We hope to see you again soon!`;
         const variables = [clientName, totalAmountStr, servicesStr];
+        const langCode = config.paymentTemplateLanguage || 'en_US';
 
         await sendNotification(clientPhone, messageText, config.paymentTemplate, clientName, {
             amount: totalAmountStr,
             service: servicesStr,
-            variables
+            variables,
+            languageCode: langCode
         });
     } catch (error) {
         console.error("Failed to trigger payment notification:", error);

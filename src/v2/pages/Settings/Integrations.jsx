@@ -484,7 +484,14 @@ export default function IntegrationsSettings() {
                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                                                     <select
                                                         value={config[t.templateKey] || ''}
-                                                        onChange={e => upd(t.templateKey, e.target.value)}
+                                                        onChange={e => {
+                                                            const name = e.target.value;
+                                                            upd(t.templateKey, name);
+                                                            const tmpl = metaTemplates.find(x => x.name === name);
+                                                            if (tmpl) {
+                                                                upd(`${t.templateKey}Language`, tmpl.language);
+                                                            }
+                                                        }}
                                                         style={{ width: '100%', padding: '0.6rem 0.85rem', border: '1px solid #86efac', borderRadius: '7px', fontSize: '0.85rem', outline: 'none', background: 'white', cursor: 'pointer', boxSizing: 'border-box' }}
                                                     >
                                                         <option value="">-- Select Approved Meta Template --</option>
@@ -500,7 +507,11 @@ export default function IntegrationsSettings() {
                                                             type="button" 
                                                             onClick={() => {
                                                                 const manual = prompt('Enter Meta Template name manually:', config[t.templateKey] || '');
-                                                                if (manual !== null) upd(t.templateKey, manual);
+                                                                if (manual !== null) {
+                                                                    upd(t.templateKey, manual);
+                                                                    const lang = prompt('Enter Template Language Code (e.g. en_US, en, hi):', config[`${t.templateKey}Language`] || 'en_US');
+                                                                    if (lang) upd(`${t.templateKey}Language`, lang);
+                                                                }
                                                             }}
                                                             style={{ background: 'none', border: 'none', color: 'var(--v2-primary)', cursor: 'pointer', padding: 0, fontSize: '0.7rem', fontWeight: '700' }}
                                                         >
