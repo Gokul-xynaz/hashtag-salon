@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Layout from '../../components/Layout';
 import { useData } from '../../../context/DataProvider';
-import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, getDocs } from 'firebase/firestore';
 import { db } from '../../../services/firebase';
 import { decrypt } from '../../utils/crypto';
 
@@ -68,7 +68,7 @@ export default function MarketingHub() {
 
     // ─── Derived: filter customers ───────────────────────────────────────────
     const segments = useMemo(() => {
-        if (!customers) return { all: [], arrears: [], vip: [], lost: [], recent: [], new: [], leads: [] };
+        if (!customers) return { all: [], arrears: [], vip: [], lost: [], recent: [], new: [], leads: [], test: [] };
         const withPhone = customers.filter(c => c.phone);
         const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
         const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
@@ -93,6 +93,7 @@ export default function MarketingHub() {
                 return ca >= sevenDaysAgo;
             }),
             leads:   withPhone.filter(c => !(c.totalVisits > 0) && !(c.totalSpent > 0)),
+            test:    withPhone.filter(c => String(c.phone).replace(/\D/g, '').includes('9629180431') || (c.name || '').toLowerCase() === 'test'),
         };
     }, [customers]);
 
@@ -106,7 +107,34 @@ export default function MarketingHub() {
         { id: 'new',     icon: '🌱', label: 'New Signups',           desc: 'Joined in last 7 days',     accent: '#3b82f6', bg: '#eff6ff' },
         { id: 'leads',   icon: '🎯', label: 'Leads (No Purchase)',   desc: 'Registered, zero spend',    accent: '#6366f1', bg: '#e0e7ff' },
         { id: 'lost',    icon: '🥀', label: 'Lost Customers',        desc: 'No visit in 30+ days',      accent: '#ef4444', bg: '#fef2f2' },
+        { id: 'test',    icon: '🧪', label: 'Test Segment',          desc: 'Only test customer (9629180431)', accent: '#ec4899', bg: '#fdf2f8' },
     ];
+
+    const ensureTestCustomer = async () => {
+        const testPhone = '9629180431';
+        const docRef = doc(db, 'customers', testPhone);
+        const savedData = {
+            name: 'test',
+            phone: testPhone,
+            dob: '',
+            anniversary: '',
+            globalStats: { totalVisits: 0, totalSpent: 0 },
+            lastUpdated: new Date()
+        };
+        try {
+            await setDoc(docRef, savedData, { merge: true });
+            setCustomers(prev => {
+                const list = prev || [];
+                if (list.some(c => c.phone === testPhone)) {
+                    return list.map(c => c.phone === testPhone ? { ...c, ...savedData } : c);
+                }
+                return [...list, savedData];
+            });
+            alert('✅ Test customer (9629180431) created/updated successfully!');
+        } catch (e) {
+            alert('Error creating test customer: ' + e.message);
+        }
+    };
 
     const delay = ms => new Promise(r => setTimeout(r, ms));
 
@@ -343,6 +371,27 @@ export default function MarketingHub() {
                                 );
                             })}
                         </div>
+                        {filterTarget === 'test' && (
+                            <div style={{ background: '#fdf2f8', border: '1px dashed #f472b6', padding: '1rem', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.25rem', animation: 'fadeUp 0.2s ease' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                                    <span style={{ fontSize: '0.85rem', color: '#db2777', fontWeight: '700' }}>
+                                        {filteredCustomers.length === 0 ? '🧪 Test customer not found in database!' : '🧪 Test customer is ready.'}
+                                    </span>
+                                    <span style={{ fontSize: '0.72rem', color: '#f472b6', fontWeight: '500' }}>
+                                        Name: <strong>test</strong> • Phone: <strong>9629180431</strong>
+                                    </span>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={ensureTestCustomer}
+                                    style={{ padding: '0.5rem 1rem', background: '#db2777', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '800', cursor: 'pointer', boxShadow: '0 2px 8px rgba(219,39,119,0.25)', transition: '0.2s' }}
+                                    onMouseEnter={e => e.currentTarget.style.background = '#be185d'}
+                                    onMouseLeave={e => e.currentTarget.style.background = '#db2777'}
+                                >
+                                    {filteredCustomers.length === 0 ? 'Create Test Customer' : 'Reset / Update Customer'}
+                                </button>
+                            </div>
+                        )}
                     </div>
 
                     {/* Step 2: Template / Message */}
