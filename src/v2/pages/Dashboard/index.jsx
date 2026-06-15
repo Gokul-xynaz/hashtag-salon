@@ -92,7 +92,10 @@ export default function V2Dashboard() {
       // Stylist Access Control & Filter
       const sid = item.stylistId || item.items?.[0]?.stylistId;
       if (!isAdmin) {
-        if (sid !== currentUser?.uid) return false;
+        const involved = (item.stylistId === currentUser?.uid) || 
+          [...(item.services||[]), ...(item.products||[]), ...(item.items||[]), ...(item.packages||[]), ...(item.memberships||[])]
+          .some(i => i.staffId === currentUser?.uid || i.stylistId === currentUser?.uid);
+        if (!involved) return false;
       } else {
         if (stylistFilter !== 'all' && sid !== stylistFilter) return false;
       }
@@ -133,8 +136,10 @@ export default function V2Dashboard() {
       const isCompleted = (r.status || 'completed').toLowerCase() === 'completed';
       
       if (!isAdmin) {
-        const sid = r.stylistId || r.items?.[0]?.stylistId;
-        return inDate && isCompleted && sid === currentUser?.uid;
+        const involved = (r.stylistId === currentUser?.uid) || 
+          [...(r.services||[]), ...(r.products||[]), ...(r.items||[]), ...(r.packages||[]), ...(r.memberships||[])]
+          .some(i => i.staffId === currentUser?.uid || i.stylistId === currentUser?.uid);
+        return inDate && isCompleted && involved;
       }
       return inDate && isCompleted;
     });
@@ -150,8 +155,10 @@ export default function V2Dashboard() {
       const ts = r.timestamp?.toDate?.()?.getTime?.(); 
       const inDate = ts && ts >= startTs && ts <= endTs;
       if (!isAdmin) {
-        const sid = r.stylistId || r.items?.[0]?.stylistId;
-        return inDate && sid === currentUser?.uid;
+        const involved = (r.stylistId === currentUser?.uid) || 
+          [...(r.services||[]), ...(r.products||[]), ...(r.items||[]), ...(r.packages||[]), ...(r.memberships||[])]
+          .some(i => i.staffId === currentUser?.uid || i.stylistId === currentUser?.uid);
+        return inDate && involved;
       }
       return inDate;
     });
