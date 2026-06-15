@@ -36,6 +36,8 @@ export default function MarketingHub() {
     const [filterTarget, setFilterTarget]       = useState('all');
     const [metaTemplateName, setMetaTemplateName] = useState('');
     const [metaLang, setMetaLang]               = useState('en_US');
+    const [metaTemplates, setMetaTemplates]     = useState([]);
+    const [loadingTemplates, setLoadingTemplates] = useState(false);
     const [metaParams, setMetaParams]           = useState([]); // [{ source, value }]
     const [templatePreview, setTemplatePreview] = useState('');
     const [scheduleMode, setScheduleMode]       = useState('now');   // 'now' | 'schedule'
@@ -63,37 +65,85 @@ export default function MarketingHub() {
         load();
     }, []);
 
+    const [templateError, setTemplateError] = useState(null);
+
+    const fetchTemplates = async (gw = gateway) => {
+        const activeGw = gw || gateway;
+        if (!activeGw || activeGw.whatsappMode !== 'meta') return;
+        
+        const tok = activeGw.metaAccessToken;
+        let wabaId = activeGw.metaWabaId;
+        const pId = activeGw.metaPhoneNumberId;
+        if (!tok) {
+            setTemplateError('Access Token is not configured.');
+            return;
+        }
+
+        setLoadingTemplates(true);
+        setTemplateError(null);
+        try {
+            if (!wabaId) {
+                throw new Error('Please configure WhatsApp Business Account ID (WABA ID) in Settings -> Integrations to sync templates.');
+            }
+
+            const templatesRes = await fetch(`https://graph.facebook.com/v22.0/${wabaId}/message_templates?access_token=${tok}`);
+            if (!templatesRes.ok) {
+                const errData = await templatesRes.json();
+                throw new Error(errData.error?.message || 'Failed to fetch templates');
+            }
+            const templatesData = await templatesRes.json();
+            const approved = (templatesData.data || []).filter(t => t.status === 'APPROVED');
+            setMetaTemplates(approved);
+        } catch (e) {
+            console.error("Error loading Meta templates in Marketing Hub:", e);
+            setTemplateError(e.message);
+        } finally {
+            setLoadingTemplates(false);
+        }
+    };
+
+    useEffect(() => {
+        if (gateway) {
+            fetchTemplates(gateway);
+        }
+    }, [gateway]);
+
     const mode = gateway?.whatsappMode || 'web';
     const isMetaMode = mode === 'meta';
 
     // ─── Derived: filter customers ───────────────────────────────────────────
     const segments = useMemo(() => {
-        if (!customers) return { all: [], arrears: [], vip: [], lost: [], recent: [], new: [], leads: [], test: [] };
+        if (!customers) return { all: [], vip: [], lost: [], recent: [], new: [], leads: [], test: [] };
         const withPhone = customers.filter(c => c.phone);
         const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
         const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
 
         return {
             all:     withPhone,
-            arrears: withPhone.filter(c => (c.unpaidBalance || 0) > 0),
-            vip:     withPhone.filter(c => (c.totalSpent || 0) > 10000 || (c.totalVisits || 0) >= 5),
+            vip:     withPhone.filter(c => (c.globalStats?.totalSpent || 0) > 10000 || (c.globalStats?.totalVisits || 0) >= 5),
             lost:    withPhone.filter(c => {
-                if (!c.lastVisit) return false;
-                const lv = c.lastVisit.toMillis ? c.lastVisit.toMillis() : new Date(c.lastVisit).getTime();
+                const lastV = c.lastVisit || c.lastUpdated;
+                if (!lastV) return false;
+                const lv = lastV.toMillis ? lastV.toMillis() : new Date(lastV).getTime();
                 return lv < thirtyDaysAgo;
             }),
             recent:  withPhone.filter(c => {
-                if (!c.lastVisit) return false;
-                const lv = c.lastVisit.toMillis ? c.lastVisit.toMillis() : new Date(c.lastVisit).getTime();
+                const lastV = c.lastVisit || c.lastUpdated;
+                if (!lastV) return false;
+                const lv = lastV.toMillis ? lastV.toMillis() : new Date(lastV).getTime();
                 return lv >= thirtyDaysAgo;
             }),
             new:     withPhone.filter(c => {
-                if (!c.createdAt) return false;
-                const ca = c.createdAt.toMillis ? c.createdAt.toMillis() : new Date(c.createdAt).getTime();
+                const created = c.createdAt || c.lastUpdated; // fallback to lastUpdated if missing
+                if (!created) return false;
+                const ca = created.toMillis ? created.toMillis() : new Date(created).getTime();
                 return ca >= sevenDaysAgo;
             }),
-            leads:   withPhone.filter(c => !(c.totalVisits > 0) && !(c.totalSpent > 0)),
-            test:    withPhone.filter(c => String(c.phone).replace(/\D/g, '').includes('9629180431') || (c.name || '').toLowerCase() === 'test'),
+            leads:   withPhone.filter(c => !(c.globalStats?.totalVisits > 0) && !(c.globalStats?.totalSpent > 0)),
+            test:    withPhone.filter(c => {
+                const p = String(c.phone).replace(/\D/g, '');
+                return p.includes('9629180431') || p.includes('9047721318') || (c.name || '').toLowerCase() === 'test';
+            }),
         };
     }, [customers]);
 
@@ -101,38 +151,109 @@ export default function MarketingHub() {
 
     const SEGMENT_CARDS = [
         { id: 'all',     icon: '👥', label: 'All Customers',        desc: 'Every registered customer', accent: '#10b981', bg: '#ecfdf5' },
-        { id: 'arrears', icon: '⚠️', label: 'Customers in Arrears', desc: 'Owe pending balances',       accent: '#f59e0b', bg: '#fffbeb' },
         { id: 'vip',     icon: '⭐', label: 'VIP Customers',         desc: 'High spenders (>₹10k)',     accent: '#8b5cf6', bg: '#f5f3ff' },
         { id: 'recent',  icon: '🔥', label: 'Recent Customers',      desc: 'Visited in last 30 days',   accent: '#06b6d4', bg: '#ecfeff' },
         { id: 'new',     icon: '🌱', label: 'New Signups',           desc: 'Joined in last 7 days',     accent: '#3b82f6', bg: '#eff6ff' },
         { id: 'leads',   icon: '🎯', label: 'Leads (No Purchase)',   desc: 'Registered, zero spend',    accent: '#6366f1', bg: '#e0e7ff' },
         { id: 'lost',    icon: '🥀', label: 'Lost Customers',        desc: 'No visit in 30+ days',      accent: '#ef4444', bg: '#fef2f2' },
-        { id: 'test',    icon: '🧪', label: 'Test Segment',          desc: 'Only test customer (9629180431)', accent: '#ec4899', bg: '#fdf2f8' },
+        { id: 'test',    icon: '🧪', label: 'Test Segment',          desc: 'Only test customers (9629180431, 9047721318)', accent: '#ec4899', bg: '#fdf2f8' },
     ];
 
-    const ensureTestCustomer = async () => {
-        const testPhone = '9629180431';
-        const docRef = doc(db, 'customers', testPhone);
-        const savedData = {
-            name: 'test',
-            phone: testPhone,
-            dob: '',
-            anniversary: '',
-            globalStats: { totalVisits: 0, totalSpent: 0 },
-            lastUpdated: new Date()
-        };
-        try {
-            await setDoc(docRef, savedData, { merge: true });
-            setCustomers(prev => {
-                const list = prev || [];
-                if (list.some(c => c.phone === testPhone)) {
-                    return list.map(c => c.phone === testPhone ? { ...c, ...savedData } : c);
+    const handleTemplateSelect = (tmplName) => {
+        setMetaTemplateName(tmplName);
+        const tmpl = metaTemplates.find(x => x.name === tmplName);
+        if (!tmpl) return;
+
+        setMetaLang(tmpl.language || 'en_US');
+        
+        const initialParams = [];
+        let previewStr = '';
+        
+        tmpl.components?.forEach(c => {
+            const cType = c.type.toLowerCase();
+            if (cType === 'header') {
+                if (c.format === 'IMAGE') {
+                    initialParams.push({ component: 'header', type: 'image', label: 'IMG URL', source: 'custom', value: '1263021382572370', useMediaId: true });
+                    previewStr += '[Image Header]\n';
+                } else if (c.format === 'DOCUMENT') {
+                    initialParams.push({ component: 'header', type: 'document', label: 'DOC URL', source: 'custom', value: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf' });
+                    previewStr += '[Document Header]\n';
+                } else if (c.format === 'VIDEO') {
+                    initialParams.push({ component: 'header', type: 'video', label: 'VID URL', source: 'custom', value: 'https://www.w3schools.com/html/mov_bbb.mp4' });
+                    previewStr += '[Video Header]\n';
+                } else if (c.format === 'TEXT') {
+                    previewStr += c.text + '\n';
+                    const matches = [...c.text.matchAll(/\{\{(\d+)\}\}/g)];
+                    matches.forEach(m => {
+                        initialParams.push({ component: 'header', type: 'text', label: `HDR {{${m[1]}}}`, source: 'name', value: '' });
+                    });
                 }
-                return [...list, savedData];
+            } else if (cType === 'body') {
+                previewStr += c.text + '\n';
+                const matches = [...c.text.matchAll(/\{\{(\d+)\}\}/g)];
+                const maxVarNum = matches.reduce((max, match) => Math.max(max, parseInt(match[1])), 0);
+                for (let i = 0; i < maxVarNum; i++) {
+                    let source = 'custom';
+                    let value = ' ';
+                    if (i === 0) source = 'name';
+                    else if (i === 1) source = 'balance';
+                    else if (i === 2) source = 'spent';
+                    
+                    initialParams.push({ component: 'body', type: 'text', label: `BODY {{${i+1}}}`, source: source, value: value });
+                }
+            } else if (cType === 'buttons') {
+                c.buttons?.forEach((b, idx) => {
+                    previewStr += `[Button: ${b.text}]\n`;
+                    if (b.type === 'URL' && b.url?.includes('{{1}}')) {
+                        // Pass "?ref=wa" as a sensible default URL parameter without prompting user
+                        initialParams.push({ component: 'button', sub_type: 'url', index: String(idx), type: 'text', label: `BTN URL`, source: 'custom', value: '?ref=wa' });
+                    }
+                });
+            } else if (cType === 'footer') {
+                previewStr += `Footer: ${c.text}\n`;
+            }
+        });
+
+        setTemplatePreview(previewStr.trim());
+        setMetaParams(initialParams);
+    };
+
+    const ensureTestCustomer = async () => {
+        const subjects = [
+            { phone: '9047721318', name: 'sathish' },
+            { phone: '9629180431', name: 'gokul' }
+        ];
+
+        try {
+            const newCustomers = [];
+            for (const subj of subjects) {
+                const docRef = doc(db, 'customers', subj.phone);
+                const savedData = {
+                    name: subj.name,
+                    phone: subj.phone,
+                    dob: '',
+                    anniversary: '',
+                    globalStats: { totalVisits: 0, totalSpent: 0 },
+                    lastUpdated: new Date()
+                };
+                await setDoc(docRef, savedData, { merge: true });
+                newCustomers.push(savedData);
+            }
+
+            setCustomers(prev => {
+                let list = prev ? [...prev] : [];
+                newCustomers.forEach(nc => {
+                    if (list.some(c => c.phone === nc.phone)) {
+                        list = list.map(c => c.phone === nc.phone ? { ...c, ...nc } : c);
+                    } else {
+                        list.push(nc);
+                    }
+                });
+                return list;
             });
-            alert('✅ Test customer (9629180431) created/updated successfully!');
+            alert('✅ Test subjects created/updated successfully!');
         } catch (e) {
-            alert('Error creating test customer: ' + e.message);
+            alert('Error creating test subjects: ' + e.message);
         }
     };
 
@@ -152,12 +273,48 @@ export default function MarketingHub() {
             recipient_type: 'individual',
             to: phone,
             type: 'template',
-            template: { name: metaTemplateName, language: { code: metaLang } },
+            template: { name: metaTemplateName, language: { code: metaLang }, components: [] },
         };
-        const params = metaParams.map(p => ({ type: 'text', text: resolveParam(p, client) })).filter(p => p.text !== undefined);
-        if (params.length > 0) {
-            payload.template.components = [{ type: 'body', parameters: params }];
+        
+        const headerParams = metaParams.filter(p => p.component === 'header');
+        const bodyParams = metaParams.filter(p => p.component === 'body');
+        const buttonParams = metaParams.filter(p => p.component === 'button');
+
+        if (headerParams.length > 0) {
+            payload.template.components.push({
+                type: 'header',
+                parameters: headerParams.map(p => {
+                    const val = resolveParam(p, client) || ' ';
+                    if (p.type === 'image') return { type: 'image', image: p.useMediaId ? { id: val } : { link: val } };
+                    if (p.type === 'document') return { type: 'document', document: { link: val } };
+                    if (p.type === 'video') return { type: 'video', video: { link: val } };
+                    return { type: 'text', text: val };
+                })
+            });
         }
+        
+        if (bodyParams.length > 0) {
+            payload.template.components.push({
+                type: 'body',
+                parameters: bodyParams.map(p => ({ type: 'text', text: resolveParam(p, client) || ' ' }))
+            });
+        }
+
+        if (buttonParams.length > 0) {
+            buttonParams.forEach(p => {
+                payload.template.components.push({
+                    type: 'button',
+                    sub_type: 'url',
+                    index: p.index,
+                    parameters: [{ type: 'text', text: resolveParam(p, client) || ' ' }]
+                });
+            });
+        }
+
+        if (payload.template.components.length === 0) {
+            delete payload.template.components;
+        }
+
         return payload;
     };
 
@@ -371,27 +528,7 @@ export default function MarketingHub() {
                                 );
                             })}
                         </div>
-                        {filterTarget === 'test' && (
-                            <div style={{ background: '#fdf2f8', border: '1px dashed #f472b6', padding: '1rem', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.25rem', animation: 'fadeUp 0.2s ease' }}>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-                                    <span style={{ fontSize: '0.85rem', color: '#db2777', fontWeight: '700' }}>
-                                        {filteredCustomers.length === 0 ? '🧪 Test customer not found in database!' : '🧪 Test customer is ready.'}
-                                    </span>
-                                    <span style={{ fontSize: '0.72rem', color: '#f472b6', fontWeight: '500' }}>
-                                        Name: <strong>test</strong> • Phone: <strong>9629180431</strong>
-                                    </span>
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={ensureTestCustomer}
-                                    style={{ padding: '0.5rem 1rem', background: '#db2777', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '800', cursor: 'pointer', boxShadow: '0 2px 8px rgba(219,39,119,0.25)', transition: '0.2s' }}
-                                    onMouseEnter={e => e.currentTarget.style.background = '#be185d'}
-                                    onMouseLeave={e => e.currentTarget.style.background = '#db2777'}
-                                >
-                                    {filteredCustomers.length === 0 ? 'Create Test Customer' : 'Reset / Update Customer'}
-                                </button>
-                            </div>
-                        )}
+
                     </div>
 
                     {/* Step 2: Template / Message */}
@@ -412,12 +549,45 @@ export default function MarketingHub() {
                                 <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1rem' }}>
                                     <div className="mkt-field">
                                         <label>Template Name</label>
-                                        <input
-                                            type="text"
-                                            value={metaTemplateName}
-                                            onChange={e => setMetaTemplateName(e.target.value)}
-                                            placeholder="e.g. hello_world"
-                                        />
+                                        {loadingTemplates ? (
+                                            <div style={{ padding: '0.7rem 0.9rem', fontSize: '0.85rem', color: 'var(--v2-text-muted)', background: '#f8fafc', borderRadius: '8px', border: '1px solid var(--v2-border)' }}>
+                                                ⏳ Fetching templates from Meta...
+                                            </div>
+                                        ) : metaTemplates.length > 0 ? (
+                                            <select
+                                                value={metaTemplateName}
+                                                onChange={e => handleTemplateSelect(e.target.value)}
+                                                style={{ cursor: 'pointer' }}
+                                            >
+                                                <option value="">-- Choose Approved Meta Template --</option>
+                                                {metaTemplates.map(tmpl => (
+                                                    <option key={tmpl.name} value={tmpl.name}>
+                                                        {tmpl.name} ({tmpl.language}) [{tmpl.category}]
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        ) : (
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                                                <input
+                                                    type="text"
+                                                    value={metaTemplateName}
+                                                    onChange={e => setMetaTemplateName(e.target.value)}
+                                                    placeholder="e.g. hello_world"
+                                                />
+                                                {templateError && (
+                                                    <span style={{ fontSize: '0.68rem', color: '#ef4444', fontWeight: '500' }}>
+                                                        ⚠️ Sync Error: {templateError}
+                                                    </span>
+                                                )}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => fetchTemplates()}
+                                                    style={{ width: 'max-content', padding: '0.35rem 0.65rem', fontSize: '0.7rem', background: '#f1f5f9', border: '1px solid var(--v2-border)', borderRadius: '6px', cursor: 'pointer', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--v2-text-sub)' }}
+                                                >
+                                                    🔄 Retry Sync Templates
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="mkt-field">
                                         <label>Language Code</label>
@@ -426,73 +596,31 @@ export default function MarketingHub() {
                                             value={metaLang}
                                             onChange={e => setMetaLang(e.target.value)}
                                             placeholder="en_US"
+                                            disabled={metaTemplates.length > 0}
+                                            style={{ background: metaTemplates.length > 0 ? '#f1f5f9' : 'white', cursor: metaTemplates.length > 0 ? 'not-allowed' : 'text' }}
                                         />
                                     </div>
                                 </div>
-
-                                {/* Variable Mapper */}
-                                <div style={{ background: '#f8fafc', border: '1px solid var(--v2-border)', borderRadius: '10px', padding: '1rem' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                                        <div>
-                                            <div style={{ fontWeight: '700', fontSize: '0.85rem' }}>Variable Mapping</div>
-                                            <div style={{ fontSize: '0.72rem', color: 'var(--v2-text-muted)' }}>
-                                                Map each <code style={{ background: '#e2e8f0', padding: '1px 4px', borderRadius: '3px' }}>{`{{n}}`}</code> in your template to a customer data field.
-                                            </div>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => setMetaParams([...metaParams, { source: 'name', value: '' }])}
-                                            style={{ padding: '0.35rem 0.75rem', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer' }}
+                                {metaTemplates.length > 0 && (
+                                    <div style={{ textAlign: 'right', marginTop: '-0.5rem' }}>
+                                        <button 
+                                            type="button" 
+                                            onClick={() => {
+                                                const manualName = prompt('Enter Meta Template name manually:', metaTemplateName);
+                                                if (manualName !== null) {
+                                                    setMetaTemplateName(manualName);
+                                                    const manualLang = prompt('Enter Language Code (e.g. en_US, en, hi):', metaLang);
+                                                    if (manualLang) setMetaLang(manualLang);
+                                                }
+                                            }}
+                                            style={{ background: 'none', border: 'none', color: 'var(--v2-primary)', cursor: 'pointer', padding: 0, fontSize: '0.72rem', fontWeight: '700' }}
                                         >
-                                            ➕ Add Variable
+                                            ✍️ Enter Template Manually
                                         </button>
                                     </div>
+                                )}
 
-                                    {metaParams.length === 0 ? (
-                                        <div style={{ fontSize: '0.78rem', color: 'var(--v2-text-muted)', textAlign: 'center', padding: '0.75rem', background: 'white', borderRadius: '8px', border: '1px dashed var(--v2-border)' }}>
-                                            No variables — use for templates with no body variables (e.g. hello_world)
-                                        </div>
-                                    ) : (
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                            {metaParams.map((param, idx) => (
-                                                <div key={idx} className="mkt-param-row">
-                                                    <span style={{ fontWeight: '800', fontSize: '0.78rem', minWidth: '36px', color: 'var(--v2-primary)', fontFamily: 'monospace' }}>{`{{${idx + 1}}}`}</span>
-                                                    <select
-                                                        value={param.source}
-                                                        onChange={e => {
-                                                            const p = [...metaParams];
-                                                            p[idx].source = e.target.value;
-                                                            setMetaParams(p);
-                                                        }}
-                                                        style={{ flex: 1, padding: '0.4rem 0.6rem', border: '1px solid var(--v2-border)', borderRadius: '6px', fontSize: '0.82rem', background: 'white', outline: 'none' }}
-                                                    >
-                                                        {PARAM_SOURCES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                                                    </select>
-                                                    {param.source === 'custom' && (
-                                                        <input
-                                                            type="text"
-                                                            value={param.value}
-                                                            onChange={e => {
-                                                                const p = [...metaParams];
-                                                                p[idx].value = e.target.value;
-                                                                setMetaParams(p);
-                                                            }}
-                                                            placeholder="Custom value..."
-                                                            style={{ width: '140px', padding: '0.4rem 0.6rem', border: '1px solid var(--v2-border)', borderRadius: '6px', fontSize: '0.82rem', outline: 'none' }}
-                                                        />
-                                                    )}
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setMetaParams(metaParams.filter((_, i) => i !== idx))}
-                                                        style={{ padding: '0.3rem 0.5rem', background: '#fee2e2', color: '#ef4444', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '700', fontSize: '0.78rem' }}
-                                                    >
-                                                        ✕
-                                                    </button>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
+                                {/* Variable Mapping is now completely automatic under the hood. No manual input required. */}
 
                                 {/* Local Preview (optional) */}
                                 <div className="mkt-field">

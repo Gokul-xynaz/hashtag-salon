@@ -69,6 +69,7 @@ export default function IntegrationsSettings() {
         ultramsgToken: '',
         // Meta
         metaPhoneNumberId: '',
+        metaWabaId: '',
         metaAccessToken: '',
         // Webhook
         webhookUrl: '',
@@ -85,25 +86,21 @@ export default function IntegrationsSettings() {
         autoSendAlerts: true,
     });
 
-    const fetchMetaTemplates = async (phoneId, token, showAlertOnError = false) => {
+    const fetchMetaTemplates = async (phoneId, token, showAlertOnError = false, wabaIdParam = null) => {
         const pId = phoneId || config.metaPhoneNumberId;
         const tok = token || config.metaAccessToken;
-        if (!pId || !tok) {
-            if (showAlertOnError) alert('Please set Phone Number ID and Access Token first.');
+        let wabaId = wabaIdParam || config.metaWabaId;
+        
+        if (!tok) {
+            if (showAlertOnError) alert('Please set Access Token first.');
             return;
         }
 
         setFetchingTemplates(true);
         try {
-            // Step 1: Get WABA ID from Phone ID
-            const phoneRes = await fetch(`https://graph.facebook.com/v22.0/${pId}?fields=whatsapp_business_account&access_token=${tok}`);
-            if (!phoneRes.ok) {
-                const errData = await phoneRes.json();
-                throw new Error(errData.error?.message || 'Failed to fetch WABA ID');
+            if (!wabaId) {
+                throw new Error('Please enter your WhatsApp Business Account ID (WABA ID) in the configuration to sync templates.');
             }
-            const phoneData = await phoneRes.json();
-            const wabaId = phoneData.whatsapp_business_account?.id;
-            if (!wabaId) throw new Error('Could not find WhatsApp Business Account linked to this Phone ID');
 
             // Step 2: Get Templates using WABA ID
             const templatesRes = await fetch(`https://graph.facebook.com/v22.0/${wabaId}/message_templates?access_token=${tok}`);
@@ -373,10 +370,14 @@ export default function IntegrationsSettings() {
                 {config.whatsappMode === 'meta' && (
                     <div className="integ-cred-panel">
                         <h3 style={{ margin: '0 0 1rem', fontSize: '0.85rem', fontWeight: '800', color: '#334155' }}>♾️ Meta Cloud API Configuration</h3>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '0.75rem' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '0.75rem' }}>
                             <div className="integ-field">
                                 <label>Phone Number ID</label>
-                                <input type="text" value={config.metaPhoneNumberId} onChange={e => upd('metaPhoneNumberId', e.target.value)} placeholder="e.g. 123456789012345" />
+                                <input type="text" value={config.metaPhoneNumberId || ''} onChange={e => upd('metaPhoneNumberId', e.target.value)} placeholder="e.g. 123456789012345" />
+                            </div>
+                            <div className="integ-field">
+                                <label>WhatsApp Business Account ID (WABA ID)</label>
+                                <input type="text" value={config.metaWabaId || ''} onChange={e => upd('metaWabaId', e.target.value)} placeholder="e.g. 987654321098765 (Optional lookup fallback)" />
                             </div>
                             <div className="integ-field">
                                 <label>Permanent Access Token</label>
@@ -386,7 +387,7 @@ export default function IntegrationsSettings() {
                                         <button type="button" onClick={() => upd('metaAccessToken', '')} style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', color: '#ef4444', background: '#fee2e2', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '700' }}>Remove</button>
                                     </div>
                                 ) : (
-                                    <input type="password" value={config.metaAccessToken} onChange={e => upd('metaAccessToken', e.target.value)} placeholder="EAAxxxxxxxxxxxxx..." />
+                                    <input type="password" value={config.metaAccessToken || ''} onChange={e => upd('metaAccessToken', e.target.value)} placeholder="EAAxxxxxxxxxxxxx..." />
                                 )}
                             </div>
                         </div>
@@ -394,7 +395,7 @@ export default function IntegrationsSettings() {
                             <a href="https://business.facebook.com/latest/whatsapp_manager" target="_blank" rel="noreferrer" style={{ fontSize: '0.75rem', color: 'var(--v2-primary)', fontWeight: '600', textDecoration: 'none' }}>
                                 🔗 Open Meta WhatsApp Manager →
                             </a>
-                            {config.metaPhoneNumberId && config.metaAccessToken && (
+                            {config.metaAccessToken && (
                                 <button
                                     type="button"
                                     onClick={() => fetchMetaTemplates(null, null, true)}
