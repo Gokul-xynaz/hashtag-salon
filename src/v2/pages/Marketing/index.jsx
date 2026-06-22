@@ -268,12 +268,13 @@ export default function MarketingHub() {
     };
 
     const buildMetaPayload = (phone, client) => {
+        const langCode = metaLang.startsWith('en') ? 'en' : metaLang;
         const payload = {
             messaging_product: 'whatsapp',
             recipient_type: 'individual',
             to: phone,
             type: 'template',
-            template: { name: metaTemplateName, language: { code: metaLang }, components: [] },
+            template: { name: metaTemplateName, language: { code: langCode }, components: [] },
         };
         
         const headerParams = metaParams.filter(p => p.component === 'header');

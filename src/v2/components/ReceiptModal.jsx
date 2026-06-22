@@ -1,9 +1,11 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
+import html2pdf from 'html2pdf.js';
 
 const fmt = (v) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 2 }).format(v || 0);
 
 export default function ReceiptModal({ bill, onClose, businessInfo = {} }) {
     const receiptRef = useRef();
+    const [isSharing, setIsSharing] = useState(false);
     const salonName = businessInfo.name || 'Hashtag unisex salon';
     const salonSub = businessInfo.subtitle || '';
     const salonAddress = businessInfo.address || '376, 3A1, Rabindranath Tagore Rd,\nManiyakarampalayam, Ganapathy,\nCoimbatore, Tamil Nadu 641006';
@@ -49,32 +51,67 @@ export default function ReceiptModal({ bill, onClose, businessInfo = {} }) {
         printWindow.document.close();
     };
 
-    const handleWhatsApp = () => {
-        if (!bill?.clientPhone) {
-            alert("No phone number found for this client.");
-            return;
-        }
-        
-        let text = `*${salonName}*\n${salonSub}\n\n`;
-        const waDateStr = bill?.billDate
-            ? new Date(bill.billDate + 'T12:00:00').toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
-            : new Date(bill.timestamp?.seconds ? bill.timestamp.seconds * 1000 : bill.timestamp).toLocaleString('en-IN');
-        text += `*INVOICE:*\nDate: ${waDateStr}\n`;
-        text += `Client: ${bill.clientName || 'Walk-in'}\n`;
-        text += `\n*ITEMS:*\n`;
-        allItems.forEach(item => {
-            let staffSuffix = item.staffName ? ` [by ${item.staffName}]` : '';
-            text += `${item.name} (x${item.qty || 1})${staffSuffix} - ${fmt((parseFloat(item.price)||0) * (parseInt(item.qty)||1))}\n`;
-        });
-        text += `\nSubtotal: ${fmt(bill.subtotal)}\n`;
-        if (bill.discountAmount > 0) text += `Discount: -${fmt(bill.discountAmount)}\n`;
-        if (bill.gstAmount > 0) text += `GST: ${fmt(bill.gstAmount)}\n`;
-        text += `*TOTAL: ${fmt(bill.totalAmount)}*\n\n`;
-        text += `Thank you for visiting ${salonName}!`;
+    const handleWhatsApp = async () => {
+        setIsSharing(true);
+        try {
+            // Generate PDF Blob
+            const element = receiptRef.current;
+            const opt = {
+                margin:       [0, 0, 0, 0], // Minimal margins
+                filename:     `Receipt_${(bill.id || 'Walk-in').substring(0, 8).toUpperCase()}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2 },
+                jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+            };
 
-        const encoded = encodeURIComponent(text);
-        const phone = bill.clientPhone.replace(/\D/g, '');
-        window.open(`https://wa.me/91${phone}?text=${encoded}`, '_blank');
+            const pdfBlob = await html2pdf().from(element).set(opt).outputPdf('blob');
+            const file = new File([pdfBlob], opt.filename, { type: 'application/pdf' });
+
+            let text = `*${salonName}*\n\n`;
+            text += `*Customer Name:* ${bill.clientName || 'Walk-in'}\n`;
+            text += `*Bill Number:* ${(bill.id || '').substring(0, 8).toUpperCase()}\n`;
+            text += `*Amount Paid:* ${fmt(bill.totalAmount)}\n`;
+            text += `*Receipt:* Please see attached PDF\n\n`;
+            text += `Thank you for visiting!`;
+
+            // Try Web Share API first (Native sharing on Mobile / Supported Desktop)
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({
+                        title: 'Salon Receipt',
+                        text: text,
+                        files: [file]
+                    });
+                    setIsSharing(false);
+                    return; // Success!
+                } catch (err) {
+                    console.log('Web Share API cancelled or failed:', err);
+                }
+            }
+
+            // Fallback for Desktop (wa.me doesn't support file attachments)
+            // 1. Download the file automatically
+            html2pdf().from(element).set(opt).save();
+
+            // 2. Open WhatsApp Web with text
+            const encoded = encodeURIComponent(text);
+            let waUrl = 'https://wa.me/';
+            if (bill?.clientPhone) {
+                const phone = bill.clientPhone.replace(/\D/g, '');
+                if (phone) waUrl += `91${phone}`;
+            }
+            waUrl += `?text=${encoded}`;
+            
+            setTimeout(() => {
+                window.open(waUrl, '_blank');
+            }, 500);
+
+        } catch (error) {
+            console.error("Error generating PDF for sharing:", error);
+            alert("Failed to prepare receipt for sharing.");
+        } finally {
+            setIsSharing(false);
+        }
     };
 
     if (!bill) return null;
@@ -98,11 +135,9 @@ export default function ReceiptModal({ bill, onClose, businessInfo = {} }) {
                 <div style={{ background: 'white', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e5e7eb' }}>
                     <span style={{ fontSize: '0.8rem', fontWeight: '800', letterSpacing: '1px', color: '#374151', textTransform: 'uppercase' }}>Receipt</span>
                     <div style={{ display: 'flex', gap: '8px' }}>
-                        {bill?.clientPhone && (
-                            <button onClick={handleWhatsApp} style={{ padding: '6px 12px', background: '#25D366', color: 'white', border: 'none', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                💬 WhatsApp
-                            </button>
-                        )}
+                        <button onClick={handleWhatsApp} disabled={isSharing} style={{ padding: '6px 12px', background: '#25D366', color: 'white', border: 'none', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '700', cursor: isSharing ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '4px', opacity: isSharing ? 0.7 : 1 }}>
+                            {isSharing ? '⏳ Preparing...' : '💬 WhatsApp'}
+                        </button>
                         <button onClick={handlePrint} style={{ padding: '6px 12px', background: 'white', color: '#1f2937', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
                             🖨️ Print
                         </button>

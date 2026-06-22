@@ -89,14 +89,9 @@ export default function V2Dashboard() {
       // Date range
       if (ts && (ts < startTs || ts > endTs)) return false;
 
-      // Stylist Access Control & Filter
-      const sid = item.stylistId || item.items?.[0]?.stylistId;
-      if (!isAdmin) {
-        const involved = (item.stylistId === currentUser?.uid) || 
-          [...(item.services||[]), ...(item.products||[]), ...(item.items||[]), ...(item.packages||[]), ...(item.memberships||[])]
-          .some(i => i.staffId === currentUser?.uid || i.stylistId === currentUser?.uid);
-        if (!involved) return false;
-      } else {
+      // Stylist Filter (admin only)
+      if (isAdmin) {
+        const sid = item.stylistId || item.items?.[0]?.stylistId;
         if (stylistFilter !== 'all' && sid !== stylistFilter) return false;
       }
 
@@ -135,12 +130,6 @@ export default function V2Dashboard() {
       const inDate = ts && ts >= startTs && ts <= endTs;
       const isCompleted = (r.status || 'completed').toLowerCase() === 'completed';
       
-      if (!isAdmin) {
-        const involved = (r.stylistId === currentUser?.uid) || 
-          [...(r.services||[]), ...(r.products||[]), ...(r.items||[]), ...(r.packages||[]), ...(r.memberships||[])]
-          .some(i => i.staffId === currentUser?.uid || i.stylistId === currentUser?.uid);
-        return inDate && isCompleted && involved;
-      }
       return inDate && isCompleted;
     });
   }, [allRecords, dateRange, isAdmin, currentUser]);
@@ -154,12 +143,6 @@ export default function V2Dashboard() {
     const inRange = allRecords.filter(r => { 
       const ts = r.timestamp?.toDate?.()?.getTime?.(); 
       const inDate = ts && ts >= startTs && ts <= endTs;
-      if (!isAdmin) {
-        const involved = (r.stylistId === currentUser?.uid) || 
-          [...(r.services||[]), ...(r.products||[]), ...(r.items||[]), ...(r.packages||[]), ...(r.memberships||[])]
-          .some(i => i.staffId === currentUser?.uid || i.stylistId === currentUser?.uid);
-        return inDate && involved;
-      }
       return inDate;
     });
 

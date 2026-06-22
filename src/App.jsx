@@ -38,29 +38,10 @@ import InvoiceEditor from './v2/pages/InvoiceEditor/index';
 import './App.css';
 // index.css handles global styles
 
-function DataDumper() {
-  const { services } = useData();
-  useEffect(() => {
-    if (services && services.length > 0) {
-      console.log("Found services in context, sending to local server...", services.length);
-      fetch('/api/save-services', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(services),
-      })
-        .then(res => res.json())
-        .then(data => console.log('Dumped services to local file:', data))
-        .catch(err => console.error('Failed to dump services to local file:', err));
-    }
-  }, [services]);
-  return null;
-}
-
 function App() {
   return (
     <AuthProvider>
       <DataProvider>
-        <DataDumper />
         <ErrorBoundary>
           <BrowserRouter>
             <Routes>

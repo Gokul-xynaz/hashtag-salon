@@ -45,7 +45,7 @@ export default function V2QuickSale() {
     const [exCharge, setExCharge] = useState('');
     const [discount, setDiscount] = useState('');
     const [discountType, setDiscountType] = useState('percentage');
-    const [gst, setGst] = useState('');
+    const [gst, setGst] = useState('5');
     const [tipAmount, setTipAmount] = useState('');
     
     // Wallet / Loyalty Usage
@@ -695,7 +695,7 @@ export default function V2QuickSale() {
                                         <SearchableDropdown
                                             value={row.name}
                                             onChange={val => onServiceChange(row.id, val)}
-                                            options={getServicesForDatalist(row.staffId, stylists, services).map(s => ({ value: s.name, label: s.name }))}
+                                            options={getServicesForDatalist(row.staffId, stylists, services).map(s => ({ value: s.name, label: `${s.name} — ₹${s.price}` }))}
                                             placeholder="Select Service"
                                             disabled={row.isRedemption}
                                             style={{ zIndex: 100 - i }}

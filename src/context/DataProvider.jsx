@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { collection, onSnapshot, query, where, doc, getDocs, limit, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, doc, getDocs, getDoc, limit, orderBy } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { useAuth } from './AuthContext';
 
@@ -64,25 +64,20 @@ export function DataProvider({ children }) {
             setLoadingProducts(false);
         }
 
-        // 1. Real-time Services
-        const unsubServices = onSnapshot(collection(db, 'services'), (snapshot) => {
+        // 1. Fetch Services Once
+        getDocs(collection(db, 'services')).then((snapshot) => {
             const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             setServices(list);
-            console.log("===============================");
-            console.log("HASHTAG_SERVICES_DUMP:");
-            console.log(JSON.stringify(list, null, 2));
-            console.log("===============================");
             setLoadingServices(false);
-        }, (err) => {
-            console.error("Services stream error:", err);
+        }).catch((err) => {
+            console.error("Services fetch error:", err);
             setLoadingServices(false);
         });
 
-        // 2. Real-time Stylists (excluding technical kiosk accounts)
+        // 2. Fetch Stylists Once (excluding technical kiosk accounts)
         const qStylists = query(collection(db, 'users'), where('role', '==', 'stylist'));
-        const unsubStylists = onSnapshot(qStylists, (snapshot) => {
+        getDocs(qStylists).then((snapshot) => {
             const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            // Strict filter to hide technical accounts and the unused 'stylist' profile
             const filtered = list.filter(u => 
                 !u.isKiosk && 
                 u.email !== 'hashtagsalon@store.com' && 
@@ -92,8 +87,8 @@ export function DataProvider({ children }) {
             );
             setStylists(filtered);
             setLoadingStylists(false);
-        }, (err) => {
-            console.error("Stylists stream error:", err);
+        }).catch((err) => {
+            console.error("Stylists fetch error:", err);
             setLoadingStylists(false);
         });
 
@@ -101,23 +96,20 @@ export function DataProvider({ children }) {
         let unsubSettings = () => {};
         let unsubSessions = () => {};
         let unsubAttendance = () => {};
-        let unsubProducts = () => {};
-        let unsubPackages = () => {};
-        let unsubMemberships = () => {};
 
         if (currentUser) {
-            // 3. Global Settings
-            unsubSettings = onSnapshot(doc(db, 'settings', 'salon_config'), (snapshot) => {
+            // 3. Fetch Global Settings Once
+            getDoc(doc(db, 'settings', 'salon_config')).then((snapshot) => {
                 if (snapshot.exists()) {
                     setSettings(snapshot.data());
                 }
                 setLoadingSettings(false);
-            }, (err) => {
-                console.error("Settings stream error:", err);
+            }).catch((err) => {
+                console.error("Settings fetch error:", err);
                 setLoadingSettings(false);
             });
 
-            // 4. Ongoing Sessions (for concurrency)
+            // 4. Ongoing Sessions (for concurrency) - Keep Real-time
             unsubSessions = onSnapshot(collection(db, 'ongoing_sessions'), (snapshot) => {
                 const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 setOngoingSessions(list);
@@ -127,7 +119,7 @@ export function DataProvider({ children }) {
                 setLoadingSessions(false);
             });
 
-            // 5. Attendance (Today's Status)
+            // 5. Attendance (Today's Status) - Keep Real-time
             const today = new Date().toLocaleDateString('en-CA');
             const qAttendance = query(collection(db, 'attendance'), where('date', '==', today));
             unsubAttendance = onSnapshot(qAttendance, (snapshot) => {
@@ -139,46 +131,40 @@ export function DataProvider({ children }) {
                 setLoadingAttendance(false);
             });
 
-            // 7. Real-time Products
-            unsubProducts = onSnapshot(collection(db, 'products'), (snapshot) => {
+            // 7. Fetch Products Once
+            getDocs(collection(db, 'products')).then((snapshot) => {
                 const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 setProducts(list);
                 setLoadingProducts(false);
-            }, (err) => {
-                console.error("Products stream error:", err);
+            }).catch((err) => {
+                console.error("Products fetch error:", err);
                 setLoadingProducts(false);
             });
 
-            // 8. Real-time Packages
-            unsubPackages = onSnapshot(collection(db, 'packages'), (snapshot) => {
+            // 8. Fetch Packages Once
+            getDocs(collection(db, 'packages')).then((snapshot) => {
                 const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 setPackages(list);
                 setLoadingPackages(false);
-            }, (err) => {
-                console.error("Packages stream error:", err);
+            }).catch((err) => {
+                console.error("Packages fetch error:", err);
                 setLoadingPackages(false);
             });
 
-            // 9. Real-time Memberships
-            unsubMemberships = onSnapshot(collection(db, 'memberships'), (snapshot) => {
+            // 9. Fetch Memberships Once
+            getDocs(collection(db, 'memberships')).then((snapshot) => {
                 const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 setMemberships(list);
                 setLoadingMemberships(false);
-            }, (err) => {
-                console.error("Memberships stream error:", err);
+            }).catch((err) => {
+                console.error("Memberships fetch error:", err);
                 setLoadingMemberships(false);
             });
         }
 
         return () => {
-            unsubServices();
-            unsubStylists();
-            unsubSettings();
             unsubSessions();
             unsubAttendance();
-            unsubProducts();
-            unsubPackages();
-            unsubMemberships();
         };
     }, [currentUser]);
 

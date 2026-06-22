@@ -51,14 +51,17 @@ export const sendNotification = async (clientPhone, messageText, templateName = 
             if (!config.metaPhoneNumberId || !token) throw new Error('Missing Meta Access Token or Phone Number ID');
 
             const url = `https://graph.facebook.com/v22.0/${config.metaPhoneNumberId}/messages`;
+            const nameToUse = templateName || config.appointmentTemplate || 'hello_world';
+            const langCodeInput = params.languageCode || 'en_US';
+            const langCode = langCodeInput.startsWith('en') ? 'en' : langCodeInput;
             const payload = {
                 messaging_product: 'whatsapp',
                 recipient_type: 'individual',
                 to: phone,
                 type: 'template',
                 template: {
-                    name: templateName || config.appointmentTemplate || 'hello_world',
-                    language: { code: params.languageCode || 'en_US' }
+                    name: nameToUse,
+                    language: { code: langCode }
                 }
             };
 
@@ -69,7 +72,6 @@ export const sendNotification = async (clientPhone, messageText, templateName = 
                     parameters: params.variables.map(v => ({ type: 'text', text: String(v) }))
                 }];
             }
-
             const res = await fetch(url, {
                 method: 'POST',
                 headers: {

@@ -101,7 +101,7 @@ export default function NewAppointmentModal({ defaultDate, defaultStylistId, onC
     const [exCharge, setExCharge] = useState('');
     const [discount, setDiscount] = useState('');
     const [discountType, setDiscountType] = useState('percentage');
-    const [gst, setGst] = useState('');
+    const [gst, setGst] = useState('5');
     const [tipAmount, setTipAmount] = useState('');
     const [coupon, setCoupon] = useState('');
     const [notes, setNotes] = useState('');
@@ -416,7 +416,7 @@ export default function NewAppointmentModal({ defaultDate, defaultStylistId, onC
                                 <SearchableDropdown
                                     value={row.serviceName}
                                     onChange={val => onServiceChange(row.id, val)}
-                                    options={FLAT_SERVICES.map(s => ({ value: s.name, label: `[${s.gender}] ${s.name} - ₹${s.price}` }))}
+                                    options={FLAT_SERVICES.map(s => ({ value: s.name, label: `[${s.gender}] ${s.name} — ₹${s.price}` }))}
                                     placeholder="Select or type service…"
                                     style={{ zIndex: 100 - i }}
                                 />

@@ -12,6 +12,7 @@ export function useAuth() {
 export function AuthProvider({ children }) {
     const [currentUser, setCurrentUser] = useState(null);
     const [userRole, setUserRole] = useState(null); // 'admin' or 'stylist'
+    const [userProfile, setUserProfile] = useState(null);
     const [selectedStylist, setSelectedStylist] = useState(() => {
         const saved = localStorage.getItem('sota_selected_stylist');
         return saved ? JSON.parse(saved) : null;
@@ -45,9 +46,11 @@ export function AuthProvider({ children }) {
                     try {
                         const userDoc = await getDoc(doc(db, 'users', user.uid));
                         if (userDoc.exists()) {
-                            setUserRole(userDoc.data().role);
-                            setUserPermissions(userDoc.data().v2_permissions || null);
-                        } else {
+                        const data = userDoc.data();
+                        setUserRole(data.role);
+                        setUserPermissions(data.v2_permissions || null);
+                        setUserProfile({ id: userDoc.id, ...data });
+                    } else {
                             console.warn("Unauthorized access attempt: No profile found for", user.email);
                             setUserRole('unauthorized');
                         }
@@ -59,6 +62,7 @@ export function AuthProvider({ children }) {
                 } else {
                     setCurrentUser(null);
                     setUserRole(null);
+                    setUserProfile(null);
                 }
             } finally {
                 setLoading(false);
@@ -84,6 +88,7 @@ export function AuthProvider({ children }) {
     const value = {
         currentUser,
         userRole,
+        userProfile,
         userPermissions,
         selectedStylist,
         selectStylist,
@@ -91,6 +96,7 @@ export function AuthProvider({ children }) {
             signOut(auth);
             setCurrentUser(null);
             setUserRole(null);
+            setUserProfile(null);
             setUserPermissions(null);
             setSelectedStylist(null);
             localStorage.removeItem('sota_selected_stylist');
