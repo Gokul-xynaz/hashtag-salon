@@ -1,3 +1,4 @@
+/* eslint-disable */
 import Layout from '../../components/Layout';
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';

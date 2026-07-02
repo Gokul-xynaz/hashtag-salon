@@ -87,7 +87,6 @@ export default function IntegrationsSettings() {
     });
 
     const fetchMetaTemplates = async (phoneId, token, showAlertOnError = false, wabaIdParam = null) => {
-        const pId = phoneId || config.metaPhoneNumberId;
         const tok = token || config.metaAccessToken;
         let wabaId = wabaIdParam || config.metaWabaId;
         
@@ -142,7 +141,7 @@ export default function IntegrationsSettings() {
             finally { setLoading(false); }
         };
         fetchConfig();
-    }, []);
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     const upd = (key, val) => setConfig(prev => ({ ...prev, [key]: val }));
 
@@ -201,7 +200,7 @@ export default function IntegrationsSettings() {
             } else if (config.whatsappMode === 'webhook') {
                 if (!config.webhookUrl) throw new Error('Missing Webhook URL');
                 let headers = {};
-                try { headers = JSON.parse(config.webhookHeaders); } catch (_) {}
+                try { headers = JSON.parse(config.webhookHeaders); } catch { /* ignore */ }
                 const bodyStr = config.webhookPayload.replace(/{{phone}}/g, phone).replace(/{{message}}/g, msg);
                 const res = await fetch(config.webhookUrl, { method: 'POST', headers, body: bodyStr });
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);

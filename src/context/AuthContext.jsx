@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
@@ -51,7 +52,7 @@ export function AuthProvider({ children }) {
                         setUserPermissions(data.v2_permissions || null);
                         setUserProfile({ id: userDoc.id, ...data });
                     } else {
-                            console.warn("Unauthorized access attempt: No profile found for", user.email);
+                            // Unauthorized access attempt
                             setUserRole('unauthorized');
                         }
                     } catch (error) {

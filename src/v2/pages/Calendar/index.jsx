@@ -287,8 +287,9 @@ export default function V2Calendar() {
             if (aFirst.startsWith('santho') || aFirst === 'santos') aFirst = 'santhose';
             if (bFirst.startsWith('santho') || bFirst === 'santos') bFirst = 'santhose';
 
-            const aIdx = CALENDAR_ORDER.indexOf(aFirst);
-            const bIdx = CALENDAR_ORDER.indexOf(bFirst);
+            const orderArray = CALENDAR_ORDER || [];
+            const aIdx = orderArray.indexOf(aFirst);
+            const bIdx = orderArray.indexOf(bFirst);
             if (aIdx === -1 && bIdx === -1) return aFirst.localeCompare(bFirst);
             if (aIdx === -1) return 1;
             if (bIdx === -1) return -1;

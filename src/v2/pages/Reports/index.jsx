@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/Layout';
 import { REPORTS, CATEGORIES } from './reportConfigs';
@@ -36,12 +36,10 @@ export default function ReportsHub() {
   const navigate = useNavigate();
   const [activeCategory, setActiveCategory] = useState('all');
   const [search, setSearch] = useState('');
-  const [pinned, setPinned] = useState([]);
-  
-  useEffect(() => {
+  const [pinned, setPinned] = useState(() => {
     const saved = localStorage.getItem('v2_pinned_reports');
-    if (saved) setPinned(JSON.parse(saved));
-  }, []);
+    return saved ? JSON.parse(saved) : [];
+  });
 
   const togglePin = (e, reportId) => {
     e.stopPropagation();

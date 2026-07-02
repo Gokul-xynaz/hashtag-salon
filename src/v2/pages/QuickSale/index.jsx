@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useData } from '../../../context/DataProvider';
-import { collection, doc, setDoc, getDoc, runTransaction, serverTimestamp, query, where, getDocs, increment, arrayUnion, limit, updateDoc, Timestamp } from 'firebase/firestore';
+import { collection, doc, setDoc, getDoc, runTransaction, serverTimestamp, query, where, getDocs, increment, arrayUnion, Timestamp } from 'firebase/firestore';
 import { db } from '../../../services/firebase';
 import Layout from '../../components/Layout';
 import ReceiptModal from '../../components/ReceiptModal';
@@ -90,7 +90,7 @@ export default function V2QuickSale() {
                             setReferrerName('');
                             setReferrerError('Phone number not found');
                         }
-                    } catch (err) {
+                    } catch {
                         if (isMounted) setReferrerError('Error verifying number');
                     }
                 }
@@ -800,7 +800,7 @@ export default function V2QuickSale() {
                                 <div style={{ display: 'grid', gridTemplateColumns: '3fr 1fr 0.7fr 1fr 36px', gap: '0.75rem', marginBottom: '0.5rem', fontSize: '0.75rem', fontWeight: '800' }}>
                                     <span>Top Up Item</span><span>Top Up Amount</span><span>Qty</span><span>Total</span><span></span>
                                 </div>
-                                {walletRows.map((row, i) => (
+                                {walletRows.map((row) => (
                                     <div key={row.id} style={{ display: 'grid', gridTemplateColumns: '3fr 1fr 0.7fr 1fr 36px', gap: '0.75rem', marginBottom: '0.5rem', alignItems: 'center' }}>
                                         <input type="text" value={row.name} disabled style={{...inputStyle, background:'#e2e8f0'}} />
                                         <input type="number" min="0" value={row.price} onChange={e => setWalletRows(prev => prev.map(r => r.id === row.id ? { ...r, price: e.target.value } : r))} placeholder="Enter Amount" style={inputStyle} />

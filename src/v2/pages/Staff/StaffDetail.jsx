@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../../components/Layout';
-import { doc, getDoc, updateDoc, collection, query, where, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, addDoc, collection, query, where, onSnapshot, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../../services/firebase';
 
 export default function StaffDetail() {
     const { id } = useParams();
     const navigate = useNavigate();
-    const [staff, setStaff] = useState(null);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('General');
 
@@ -19,7 +18,6 @@ export default function StaffDetail() {
 
     useEffect(() => {
         if (id === 'new') {
-            setStaff({ role: 'stylist', isActive: true });
             setFormData({ role: 'stylist', isActive: true });
             setLoading(false);
             return;
@@ -29,7 +27,6 @@ export default function StaffDetail() {
             try {
                 const d = await getDoc(doc(db, 'users', id));
                 if (d.exists()) {
-                    setStaff({ id: d.id, ...d.data() });
                     setFormData({ id: d.id, ...d.data() });
                 } else {
                     alert("Staff not found");
@@ -59,18 +56,31 @@ export default function StaffDetail() {
 
     const handleSave = async (e) => {
         e.preventDefault();
+        if (!formData.name?.trim()) return alert('Full name is required.');
+        if (!formData.phone?.trim()) return alert('Phone number is required.');
         try {
             if (id === 'new') {
-                // Should use a Firebase Cloud Function to create auth user, 
-                // but for V2 frontend simulation, we might just create the doc if custom IDs are allowed.
-                alert("Creating new staff members requires Auth setup. Simulating save.");
+                const newStaffData = {
+                    name: formData.name.trim(),
+                    phone: formData.phone.trim(),
+                    email: formData.email?.trim() || '',
+                    joiningDate: formData.joiningDate || '',
+                    role: formData.role || 'stylist',
+                    color: formData.color || '#3b82f6',
+                    isActive: true,
+                    createdAt: serverTimestamp(),
+                };
+                await addDoc(collection(db, 'users'), newStaffData);
+                alert('Staff member added successfully!');
+                navigate('/v2/staff');
             } else {
-                await updateDoc(doc(db, 'users', id), formData);
-                alert("Profile updated successfully!");
-                setStaff(formData);
+                const { id: _id, ...dataToSave } = formData;
+                await updateDoc(doc(db, 'users', id), dataToSave);
+                alert('Profile updated successfully!');
+
             }
         } catch (err) {
-            alert("Error: " + err.message);
+            alert('Error: ' + err.message);
         }
     };
 

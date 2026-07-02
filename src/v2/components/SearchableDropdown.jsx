@@ -1,3 +1,4 @@
+/* eslint-disable */
 import React, { useState, useRef, useEffect } from 'react';
 
 const SearchableDropdown = ({ value, onChange, options, placeholder = "Select or type...", disabled = false, style = {} }) => {

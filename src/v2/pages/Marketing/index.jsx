@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Layout from '../../components/Layout';
-import { useData } from '../../../context/DataProvider';
-import { doc, getDoc, setDoc, collection, getDocs } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
 import { db } from '../../../services/firebase';
 import { decrypt } from '../../utils/crypto';
 
@@ -73,7 +72,6 @@ export default function MarketingHub() {
         
         const tok = activeGw.metaAccessToken;
         let wabaId = activeGw.metaWabaId;
-        const pId = activeGw.metaPhoneNumberId;
         if (!tok) {
             setTemplateError('Access Token is not configured.');
             return;
@@ -106,7 +104,7 @@ export default function MarketingHub() {
         if (gateway) {
             fetchTemplates(gateway);
         }
-    }, [gateway]);
+    }, [gateway]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const mode = gateway?.whatsappMode || 'web';
     const isMetaMode = mode === 'meta';
@@ -218,44 +216,7 @@ export default function MarketingHub() {
         setMetaParams(initialParams);
     };
 
-    const ensureTestCustomer = async () => {
-        const subjects = [
-            { phone: '9047721318', name: 'sathish' },
-            { phone: '9629180431', name: 'gokul' }
-        ];
 
-        try {
-            const newCustomers = [];
-            for (const subj of subjects) {
-                const docRef = doc(db, 'customers', subj.phone);
-                const savedData = {
-                    name: subj.name,
-                    phone: subj.phone,
-                    dob: '',
-                    anniversary: '',
-                    globalStats: { totalVisits: 0, totalSpent: 0 },
-                    lastUpdated: new Date()
-                };
-                await setDoc(docRef, savedData, { merge: true });
-                newCustomers.push(savedData);
-            }
-
-            setCustomers(prev => {
-                let list = prev ? [...prev] : [];
-                newCustomers.forEach(nc => {
-                    if (list.some(c => c.phone === nc.phone)) {
-                        list = list.map(c => c.phone === nc.phone ? { ...c, ...nc } : c);
-                    } else {
-                        list.push(nc);
-                    }
-                });
-                return list;
-            });
-            alert('✅ Test subjects created/updated successfully!');
-        } catch (e) {
-            alert('Error creating test subjects: ' + e.message);
-        }
-    };
 
     const delay = ms => new Promise(r => setTimeout(r, ms));
 
@@ -369,7 +330,7 @@ export default function MarketingHub() {
                 } else if (mode === 'webhook') {
                     const msg = messageText.replace(/{{name}}/g, name);
                     let headers = {};
-                    try { headers = JSON.parse(gateway.webhookHeaders); } catch (_) {}
+                    try { headers = JSON.parse(gateway.webhookHeaders); } catch { /* ignore */ }
                     const bodyStr = gateway.webhookPayload.replace(/{{phone}}/g, phone).replace(/{{message}}/g, msg);
                     const res = await fetch(gateway.webhookUrl, { method: 'POST', headers, body: bodyStr });
                     if (!res.ok) throw new Error(`HTTP ${res.status}`);

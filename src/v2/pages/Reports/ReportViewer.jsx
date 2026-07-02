@@ -111,7 +111,7 @@ export default function ReportViewer() {
       }
     };
     fetchAll();
-  }, [report?.id]);
+  }, [report]);
 
   // Date-filtered appointments
   const dateFiltered = useMemo(() => {

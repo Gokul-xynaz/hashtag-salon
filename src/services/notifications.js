@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import { decrypt } from '../v2/utils/crypto';

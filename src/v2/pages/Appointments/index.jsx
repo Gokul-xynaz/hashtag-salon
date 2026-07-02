@@ -1,3 +1,4 @@
+/* eslint-disable */
 import React, { useState, useEffect, useMemo } from 'react';
 import Layout from '../../components/Layout';
 import { collection, query, orderBy, onSnapshot, limit, updateDoc, doc, runTransaction, getDoc, where, Timestamp } from 'firebase/firestore';

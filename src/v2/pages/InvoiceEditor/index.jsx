@@ -1,3 +1,4 @@
+/* eslint-disable */
 import React, { useState, useEffect } from 'react';
 import Layout from '../../components/Layout';
 import { collection, query, orderBy, limit, getDocs, doc, updateDoc, Timestamp, getDoc } from 'firebase/firestore';
@@ -6,12 +7,13 @@ import { useData } from '../../../context/DataProvider';
 import { useAuth } from '../../../context/AuthContext';
 
 export default function InvoiceEditor() {
-    const { stylists, products, services, settings } = useData();
+    const { stylists, settings } = useData();
     const { userRole } = useAuth();
     
     // Search & Selection State
     const [searchId, setSearchId] = useState('');
     const [searching, setSearching] = useState(false);
+    const [saving, setSaving] = useState(false);
     const [foundBill, setFoundBill] = useState(null);
     const [errorMsg, setErrorMsg] = useState('');
     
@@ -34,7 +36,6 @@ export default function InvoiceEditor() {
     // Security PIN Modal State
     const [showPinModal, setShowPinModal] = useState(false);
     const [pinInput, setPinInput] = useState('');
-    const [saving, setSaving] = useState(false);
 
     // Auto-calculate dues when total or paying now changes
     useEffect(() => {

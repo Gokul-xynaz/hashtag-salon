@@ -8,13 +8,12 @@ export default function SystemLogs() {
     const { userRole } = useAuth();
     const isAdmin = userRole === 'admin';
     const [logs, setLogs] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(isAdmin);
     const [expandedId, setExpandedId] = useState(null);
     const [logLimit, setLogLimit] = useState(50);
 
     useEffect(() => {
         if (!isAdmin) {
-            setLoading(false);
             return;
         }
 

@@ -19,7 +19,7 @@ export const logError = async (context, error, additionalData = {}) => {
         // Prevent spamming the exact same error message to save Firebase writes
         const errorKey = `${context}:${errorMessage}`;
         if (recentErrors.has(errorKey)) {
-            console.warn(`[Throttled] Error already logged recently: ${context} - ${errorMessage}`);
+            // Throttled: Error already logged recently
             return;
         }
 
