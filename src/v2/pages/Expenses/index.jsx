@@ -114,11 +114,9 @@ export default function V2Expenses() {
                     <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '900' }}>Store Expenses</h1>
                     <p style={{ color: 'var(--v2-text-muted)', margin: '0.25rem 0 0 0', fontSize: '0.9rem' }}>Track operational costs. (These do NOT deduct from stylist payroll).</p>
                 </div>
-                {isAdmin && (
-                    <button onClick={() => setShowModal(true)} style={{ padding: '0.75rem 1.5rem', background: 'var(--v2-primary)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <span style={{ fontSize: '1.2rem' }}>+</span> Add Expense
-                    </button>
-                )}
+                <button onClick={() => setShowModal(true)} style={{ padding: '0.75rem 1.5rem', background: 'var(--v2-primary)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ fontSize: '1.2rem' }}>+</span> Add Expense
+                </button>
             </div>
 
             {/* ── Date Filter Bar ── */}
@@ -195,7 +193,7 @@ export default function V2Expenses() {
             </div>
 
             {/* Modal — admin only */}
-            {showModal && isAdmin && (
+            {showModal && (
                 <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowModal(false)}>
                     <form onSubmit={handleSave} className="v2-card" style={{ maxWidth: '450px', width: '100%', padding: '2rem' }} onClick={e => e.stopPropagation()}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>

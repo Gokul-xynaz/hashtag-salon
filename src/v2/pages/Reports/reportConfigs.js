@@ -426,8 +426,39 @@ export const REPORTS = [
       appointments
         .filter(a => (a.status || 'completed').toLowerCase() === 'completed')
         .forEach(a => {
-          const sid = a.stylistId || a.items?.[0]?.stylistId;
-          if (sid && map[sid]) {
+          const isMulti = a.stylistId === 'multiple';
+          if (isMulti) {
+            const services = getAllItems(a).filter(i => i.type !== 'product');
+            const totalServicePrice = services.reduce((sum, i) => sum + (Number(i.price) || 0), 0) || 1;
+            const appointmentAmount = getSalonAmount(a);
+            const billedSids = new Set();
+
+            services.forEach(item => {
+              const itemSid = item.staffId || item.stylistId || 'unknown';
+              if (itemSid) {
+                if (!map[itemSid]) {
+                  map[itemSid] = { stylistName: item.staffName || item.stylistName || a.stylistName || 'Unknown Staff', bills: 0, cash: 0, card: 0, discount: 0, revenue: 0 };
+                }
+                const ratio = ((Number(item.price) || 0) / totalServicePrice);
+                const amount = appointmentAmount * ratio;
+
+                if (!billedSids.has(itemSid)) {
+                  map[itemSid].bills++;
+                  billedSids.add(itemSid);
+                }
+                
+                map[itemSid].revenue += amount;
+                map[itemSid].discount += (a.discount || 0) * ratio;
+
+                if ((a.paymentType || 'cash') === 'cash') map[itemSid].cash += amount;
+                else map[itemSid].card += amount;
+              }
+            });
+          } else {
+            const sid = a.stylistId || a.items?.[0]?.stylistId || 'unknown';
+            if (!map[sid]) {
+              map[sid] = { stylistName: a.stylistName || 'Unknown Staff', bills: 0, cash: 0, card: 0, discount: 0, revenue: 0 };
+            }
             const amount = getSalonAmount(a);
             map[sid].bills++;
             map[sid].revenue  += amount;

@@ -57,15 +57,10 @@ export default function V2Dashboard() {
 
   // Filters
   const [dateRange,    setDateRange]    = useState('today');
-  // eslint-disable-next-line no-unused-vars
   const [statusFilter, setStatusFilter] = useState('all');
-  // eslint-disable-next-line no-unused-vars
   const [stylistFilter,setStylistFilter]= useState('all');
-  // eslint-disable-next-line no-unused-vars
   const [searchQuery,  setSearchQuery]  = useState('');
-  // eslint-disable-next-line no-unused-vars
   const [entries,      setEntries]      = useState(25);
-  // eslint-disable-next-line no-unused-vars
   const [activeTab,    setActiveTab]    = useState('all'); // all | appointments | sales
 
   // Fetch ALL appointments once (live)
