@@ -9,7 +9,7 @@ import StatCard from '../../components/StatCard';
 import { useAuth } from '../../../context/AuthContext';
 import { 
   Layers, IndianRupee, Banknote, CreditCard, CalendarClock, 
-  Users, UserPlus, ShoppingBag, Receipt, Calculator, Clock
+  Users, UserPlus, ShoppingBag, Receipt, Calculator, Clock, ChevronDown
 } from 'lucide-react';
 
 const STATUS_COLORS = {
@@ -206,20 +206,23 @@ export default function V2Dashboard() {
             <Clock size={14} strokeWidth={2.5} /> EXPENSES
           </button>
 
-          <select 
-            className="form-select" 
-            style={{ width: 'auto', padding: '0.4rem 0.9rem', borderRadius: '6px', border: '1px solid var(--v2-border)', fontSize: '0.75rem', fontWeight: '700', color: 'var(--v2-text-main)', background: 'white', outline: 'none', cursor: 'pointer', letterSpacing: '0.02em' }}
-            value={dateRange} 
-            onChange={e => setDateRange(e.target.value)}
-          >
-            <option value="today">Today</option>
-            <option value="yesterday">Yesterday</option>
-            <option value="last7">Last 7 Days</option>
-            <option value="last30">Last 30 Days</option>
-            <option value="month">This Month</option>
-            <option value="lastMonth">Last Month</option>
-            <option value="all">All Time</option>
-          </select>
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+            <select 
+              className="form-select" 
+              style={{ width: 'auto', padding: '0.4rem 2rem 0.4rem 0.9rem', borderRadius: '6px', border: '1px solid var(--v2-border)', fontSize: '0.75rem', fontWeight: '700', color: 'var(--v2-text-main)', background: 'white', outline: 'none', cursor: 'pointer', letterSpacing: '0.02em', appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none' }}
+              value={dateRange} 
+              onChange={e => setDateRange(e.target.value)}
+            >
+              <option value="today">Today</option>
+              <option value="yesterday">Yesterday</option>
+              <option value="last7">Last 7 Days</option>
+              <option value="last30">Last 30 Days</option>
+              <option value="month">This Month</option>
+              <option value="lastMonth">Last Month</option>
+              <option value="all">All Time</option>
+            </select>
+            <ChevronDown size={14} strokeWidth={2.5} color="var(--v2-text-main)" style={{ position: 'absolute', right: '0.6rem', pointerEvents: 'none' }} />
+          </div>
         </div>
       </div>
 

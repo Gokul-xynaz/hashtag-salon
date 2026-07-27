@@ -159,7 +159,6 @@ export default function V2QuickSale() {
                 phone: newClientForm.phone.trim(),
                 dob: newClientForm.dob || '',
                 anniversary: newClientForm.anniversary || '',
-                globalStats: { totalVisits: 0, totalSpent: 0 },
                 loyaltyPoints: 0,
                 walletBalance: 0,
                 unpaidBalance: 0,

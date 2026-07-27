@@ -11,8 +11,7 @@ import { computeAnalytics, runInsightEngine, getPeriodBounds } from '../v2/utils
 const InsightsContext = createContext(null);
 
 export function InsightsProvider({ children }) {
-  const { stylists, products, customers, services } = useData();
-
+  const { stylists, products, services } = useData();
   const [period, setPeriod] = useState('thisMonth');
   const [loading, setLoading] = useState(true);
   const [error, setError]   = useState(null);
@@ -177,7 +176,7 @@ export function InsightsProvider({ children }) {
     </InsightsContext.Provider>
   );
 }
-
+// eslint-disable-next-line react-refresh/only-export-components
 export function useInsights() {
   const ctx = useContext(InsightsContext);
   if (!ctx) throw new Error('useInsights must be used inside InsightsProvider');
