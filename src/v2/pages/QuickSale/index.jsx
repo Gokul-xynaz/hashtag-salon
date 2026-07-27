@@ -163,7 +163,8 @@ export default function V2QuickSale() {
                 loyaltyPoints: 0,
                 walletBalance: 0,
                 unpaidBalance: 0,
-                lastUpdated: new Date()
+                lastUpdated: new Date(),
+                globalStats: { totalVisits: 0, totalSpent: 0, lastVisit: new Date() }
             };
             await setDoc(doc(db, 'customers', newClientForm.phone.trim()), clientData, { merge: true });
             setSelectedClient({ ...clientData, id: newClientForm.phone.trim() });
@@ -461,7 +462,8 @@ export default function V2QuickSale() {
                         activePackages: newActivePackages,
                         activeMembership: newMembership,
                         'globalStats.totalSpent': (selectedClient.globalStats?.totalSpent || 0) + grandTotal,
-                        'globalStats.totalVisits': (selectedClient.globalStats?.totalVisits || 0) + 1
+                        'globalStats.totalVisits': (selectedClient.globalStats?.totalVisits || 0) + 1,
+                        'globalStats.lastVisit': new Date()
                     });
                 }
 

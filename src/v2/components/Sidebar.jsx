@@ -1,4 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataProvider';
 
@@ -11,6 +12,7 @@ const Icon = ({ d, size = 16, stroke = 'currentColor', fill = 'none', viewBox = 
 
 const Icons = {
     dashboard:    <Icon d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />,
+    insights:     <Icon d={['M3 3v18h18', 'M18 9l-5-5-4 4-6-6']} />,
     calendar:     <Icon d={['M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z']} />,
     appointments: <Icon d={['M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z', 'M14 2v6h6M16 13H8M16 17H8M10 9H8']} />,
     quicksale:    <Icon d={['M20 12V22H4V12', 'M22 7H2v5h20V7z', 'M12 22V7', 'M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z', 'M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z']} />,
@@ -50,6 +52,7 @@ const MENU_STRUCTURE = [
             { path: '/v2/pos',      icon: Icons.quicksale, label: 'Quick Sale',      perm: 'acc_quicksale' },
             { path: '/v2/expenses', icon: Icons.expenses,  label: 'Store Expenses',  perm: 'acc_expenditure' },
             { path: '/v2/reports',  icon: Icons.reports,   label: 'Reports',         perm: 'acc_reports' },
+            { path: '/v2/insights', icon: Icons.insights,  label: 'Business Insights', perm: 'acc_reports', badge: 'New' },
         ]
     },
     {
@@ -90,8 +93,7 @@ const MENU_STRUCTURE = [
     {
         label: 'System & Admin',
         items: [
-            { path: '/v2/invoice-editor', icon: Icons.settings, label: 'Secure Invoice Editor', perm: 'admin_only' },
-            { path: '/v2/system-logs', icon: Icons.settings, label: 'System Error Logs', perm: 'admin_only' }
+            { path: '/v2/invoice-editor', icon: Icons.settings, label: 'Secure Invoice Editor', perm: 'admin_only' }
         ]
     }
 ];
@@ -111,6 +113,7 @@ export default function Sidebar() {
     const { logout, userRole, userPermissions } = useAuth();
     const { settings } = useData();
     const navigate = useNavigate();
+    const [insightsVisits, setInsightsVisits] = useState(() => parseInt(localStorage.getItem('insights_visits') || '0', 10));
 
     const perms = {
         ...(userRole === 'stylist' ? DEFAULT_STYLIST_PERMS : {}),
@@ -214,37 +217,46 @@ export default function Sidebar() {
                 .v2-logout-btn {
                     display: flex;
                     align-items: center;
-                    gap: 0.75rem;
-                    padding: 0.55rem 0.85rem;
+                    gap: 0.85rem;
+                    padding: 0.65rem 0.85rem;
                     border-radius: 8px;
-                    color: rgba(255,255,255,0.45);
+                    color: rgba(255,255,255,0.6);
                     font-size: 0.82rem;
-                    font-weight: 500;
+                    font-weight: 600;
                     cursor: pointer;
                     border: none;
                     background: transparent;
                     width: 100%;
                     text-align: left;
-                    transition: all 0.18s ease;
+                    transition: all 0.2s ease;
+                    margin-bottom: 2px;
+                }
+                .v2-logout-btn svg {
+                    opacity: 0.6;
+                    transition: opacity 0.18s ease;
+                    flex-shrink: 0;
                 }
                 .v2-logout-btn:hover {
                     color: #ef4444;
-                    background: rgba(239, 68, 68, 0.1);
+                    background: transparent;
                 }
                 .v2-logout-btn:hover svg {
                     color: #ef4444;
+                    opacity: 1;
                 }
             `}</style>
 
             <aside className="v2-sidebar" style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
                 {/* Brand */}
-                <div style={{ height: '64px', display: 'flex', alignItems: 'center', padding: '0 1rem', gap: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
-                    <img src={settings?.logoUrl || "/logo.png"} alt="Logo" style={{ width: '34px', height: '34px', borderRadius: '10px', objectFit: 'cover', flexShrink: 0, boxShadow: '0 4px 12px rgba(13,148,136,0.4)' }} />
-                    <div style={{ overflow: 'hidden' }}>
-                        <div style={{ fontWeight: '800', fontSize: '0.9rem', color: '#ffffff', lineHeight: 1.2, letterSpacing: '-0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{settings?.businessName || 'Hashtag unisex salon'}</div>
-                        <div style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.3)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Management</div>
+                <div style={{ height: '70px', display: 'flex', alignItems: 'center', padding: '0 0.85rem', gap: '0.65rem', borderBottom: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
+                    <img src={settings?.logoUrl || "/logo.png"} alt="Logo" style={{ width: '32px', height: '32px', borderRadius: '10px', objectFit: 'cover', flexShrink: 0, boxShadow: '0 4px 12px rgba(13,148,136,0.4)' }} />
+                    <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                        <div style={{ fontWeight: '800', fontSize: '0.85rem', color: '#ffffff', lineHeight: 1.15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{settings?.businessName || 'Hashtag salon'}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '3px' }}>
+                            <span style={{ fontSize: '0.52rem', color: 'rgba(255,255,255,0.35)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Management</span>
+                            <span style={{ fontSize: '0.45rem', background: 'rgba(13,148,136,0.25)', color: '#0d9488', padding: '1.5px 5px', borderRadius: '4px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.02em', border: '1px solid rgba(13,148,136,0.3)', whiteSpace: 'nowrap' }}>Pro Max Plan</span>
+                        </div>
                     </div>
-                    <div style={{ marginLeft: 'auto', fontSize: '0.55rem', background: 'rgba(13,148,136,0.25)', color: '#0d9488', padding: '3px 7px', borderRadius: '6px', fontWeight: '700', letterSpacing: '0.05em', border: '1px solid rgba(13,148,136,0.3)' }}>PRO</div>
                 </div>
 
                 {/* Nav */}
@@ -258,9 +270,21 @@ export default function Sidebar() {
                                     to={item.path}
                                     end={item.path === '/v2/dashboard'}
                                     className={({ isActive }) => `v2-nav-item-link ${isActive ? 'active' : ''}`}
+                                    onClick={() => {
+                                        if (item.path === '/v2/insights') {
+                                            const newCount = insightsVisits + 1;
+                                            localStorage.setItem('insights_visits', newCount);
+                                            setInsightsVisits(newCount);
+                                        }
+                                    }}
                                 >
                                     {item.icon}
                                     <span style={{ flex: 1 }}>{item.label}</span>
+                                    {item.badge && (item.path !== '/v2/insights' || insightsVisits < 5) && (
+                                        <span style={{ fontSize: '0.6rem', background: '#3b82f6', color: '#ffffff', padding: '1.5px 6px', borderRadius: '4px', fontWeight: '800' }}>
+                                            {item.badge}
+                                        </span>
+                                    )}
                                 </NavLink>
                             ))}
                         </div>
@@ -268,28 +292,35 @@ export default function Sidebar() {
                 </nav>
 
                 {/* Footer */}
-                <div style={{ padding: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
-                    <div className="v2-user-chip" onClick={() => navigate('/v2/catalogue/business')} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', background: 'rgba(255,255,255,0.05)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', cursor: 'pointer', transition: 'all 0.2s ease' }} onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.transform = 'translateY(-2px)'; }} onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.transform = 'translateY(0)'; }}>
-                        <img src={settings?.logoUrl || "/logo.png"} alt="Logo" style={{ width: '40px', height: '40px', borderRadius: '10px', objectFit: 'cover', flexShrink: 0, boxShadow: '0 4px 12px rgba(13,148,136,0.4)' }} />
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontWeight: '700', fontSize: '0.85rem', color: '#ffffff', marginBottom: '0.1rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{settings?.businessName || 'Business Settings'}</div>
-                            <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: '500', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                Manage Business
-                            </div>
-                            <div style={{ fontSize: '0.65rem', color: 'var(--v2-primary)', fontWeight: '600', marginTop: '1px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <div style={{ padding: '0.5rem 0.85rem 1.25rem 0.85rem', borderTop: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
+                    {/* Profile */}
+                    <div onClick={() => navigate('/v2/catalogue/business')} style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', padding: '0.5rem 0', cursor: 'pointer', opacity: 0.9, transition: 'opacity 0.2s', marginBottom: '0.5rem' }} onMouseEnter={e => e.currentTarget.style.opacity = 1} onMouseLeave={e => e.currentTarget.style.opacity = 0.9}>
+                        {settings?.logoUrl ? (
+                             <img src={settings.logoUrl} alt="Logo" style={{ width: '32px', height: '32px', borderRadius: '8px', objectFit: 'cover', flexShrink: 0, border: '1px solid rgba(255,255,255,0.08)' }} />
+                        ) : (
+                             <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', fontWeight: '700', color: '#e2e8f0', flexShrink: 0 }}>
+                                 {settings?.businessName ? settings.businessName.charAt(0).toUpperCase() : 'J'}
+                             </div>
+                        )}
+                        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                            <div style={{ fontWeight: '600', fontSize: '0.82rem', color: '#ffffff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing: '0.01em', lineHeight: 1.2 }}>{settings?.businessName || 'JX Salon'}</div>
+                            <div style={{ fontSize: '0.62rem', color: '#94a3b8', fontWeight: '500', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: '1px' }}>
                                 Welcome {userRole === 'admin' ? 'Admin' : 'Stylist'}
                             </div>
                         </div>
                     </div>
-                    <button onClick={logout} className="v2-logout-btn" style={{ marginTop: '0.5rem', width: '100%', padding: '0.75rem', background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '10px', color: 'rgba(255,255,255,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', cursor: 'pointer', transition: 'all 0.2s ease', fontWeight: '600', fontSize: '0.8rem' }} onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)'; e.currentTarget.style.color = '#ef4444'; }} onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = 'rgba(255,255,255,0.6)'; }}>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-                        <span>Sign Out</span>
+
+                    {/* Sign Out */}
+                    <button onClick={logout} className="v2-logout-btn" style={{ padding: '0.25rem 0', gap: '0.85rem' }}>
+                        <div style={{ width: '32px', display: 'flex', justifyContent: 'flex-start', alignItems: 'center', flexShrink: 0 }}>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: 'translateX(-4px)' }}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                        </div>
+                        <span style={{ fontSize: '0.75rem' }}>Sign Out</span>
                     </button>
-                    <div style={{ textAlign: 'center', marginTop: '0.75rem', fontSize: '0.62rem', color: 'rgba(255,255,255,0.3)', fontWeight: '500', letterSpacing: '0.02em' }}>
-                        Powered by{' '}
-                        <a href="https://yoursxyn.com" target="_blank" rel="noopener noreferrer" style={{ color: '#10b981', textDecoration: 'none', fontWeight: '700', transition: 'color 0.15s ease' }} onMouseEnter={e => e.currentTarget.style.color = '#059669'} onMouseLeave={e => e.currentTarget.style.color = '#10b981'}>
-                            XYN
-                        </a>
+
+                    {/* Powered By */}
+                    <div style={{ textAlign: 'center', fontSize: '0.65rem', color: 'rgba(255,255,255,0.25)', fontWeight: '500', marginTop: '1rem' }}>
+                        Powered by <span style={{ color: '#10b981', fontWeight: '700', letterSpacing: '0.04em' }}>XYN</span>
                     </div>
                 </div>
             </aside>

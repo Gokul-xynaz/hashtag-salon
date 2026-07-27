@@ -31,7 +31,7 @@
   --v2-sidebar-text:   #94a3b8;
   --v2-sidebar-active: #ffffff;
   --v2-sidebar-hover:  #1e293b;
-  --v2-sidebar-width:  240px;
+  --v2-sidebar-width:  230px;
 
   /* Aliases for backwards compatibility temporarily */
   --v2-bg-main:      var(--v2-bg);

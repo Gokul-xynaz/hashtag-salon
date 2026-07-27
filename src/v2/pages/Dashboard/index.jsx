@@ -225,21 +225,19 @@ export default function V2Dashboard() {
 
       {/* ── KPI STRIP ── */}
       {isAdmin ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8,1fr)', gap: '0.75rem', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: '0.75rem', marginBottom: '1.5rem' }}>
           <StatCard label="Revenue" value={fmt(kpis.totalRev)} icon={IndianRupee} accentColor="var(--v2-primary)" accentBg="rgba(13, 148, 136, 0.1)" />
           <StatCard label="Products" value={fmt(kpis.productSales)} icon={ShoppingBag} accentColor="#f59e0b" accentBg="rgba(245, 158, 11, 0.1)" />
           <StatCard label="Cash" value={fmt(kpis.cash)} icon={Banknote} accentColor="#16a34a" accentBg="rgba(22, 163, 74, 0.1)" />
           <StatCard label="Card / UPI" value={fmt(kpis.card)} icon={CreditCard} accentColor="#2563eb" accentBg="rgba(37, 99, 235, 0.1)" />
           <StatCard label="Avg. Bill" value={fmt(kpis.avgBill)} icon={Calculator} accentColor="#7c3aed" accentBg="rgba(124, 58, 237, 0.1)" />
           <StatCard label="Walk-ins" value={kpis.walkins} icon={UserPlus} accentColor="#ec4899" accentBg="rgba(236, 72, 153, 0.1)" />
-          <StatCard label="Unpaid" value={kpis.unpaid} icon={Receipt} accentColor="#dc2626" accentBg="rgba(220, 38, 38, 0.1)" />
           <StatCard label="Returning" value={kpis.returning} icon={Users} accentColor="#0891b2" accentBg="rgba(8, 145, 178, 0.1)" />
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: '0.75rem', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: '0.75rem', marginBottom: '1.5rem' }}>
           <StatCard label="Bills Done" value={kpis.completedCount} icon={Layers} accentColor="var(--v2-text-sub)" accentBg="#f1f5f9" description="Today's completed count" />
           <StatCard label="Scheduled" value={kpis.appts} icon={CalendarClock} accentColor="#3b82f6" accentBg="rgba(59, 130, 246, 0.1)" description="Today's appointments" />
-          <StatCard label="Unpaid" value={kpis.unpaid} icon={Receipt} accentColor="#dc2626" accentBg="rgba(220, 38, 38, 0.1)" description="Pending dues" />
           <StatCard label="Today's Rev" value={fmt(kpis.totalRev)} icon={IndianRupee} accentColor="var(--v2-primary)" accentBg="rgba(13, 148, 136, 0.1)" description="Your total revenue" />
           <StatCard label="Cash" value={fmt(kpis.cash)} icon={Banknote} accentColor="#16a34a" accentBg="rgba(22, 163, 74, 0.1)" description="Cash register balance" />
           <StatCard label="Card / UPI" value={fmt(kpis.card)} icon={CreditCard} accentColor="#8b5cf6" accentBg="rgba(139, 92, 246, 0.1)" description="Digital payments" />

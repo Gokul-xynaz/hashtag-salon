@@ -32,6 +32,7 @@ const AppointmentsLedger = React.lazy(() => import('./v2/pages/Appointments/inde
 const IntegrationsSettings = React.lazy(() => import('./v2/pages/Settings/Integrations'));
 const MarketingHub = React.lazy(() => import('./v2/pages/Marketing/index'));
 const V2Expenses = React.lazy(() => import('./v2/pages/Expenses/index'));
+const V2Insights = React.lazy(() => import('./v2/pages/Insights/index'));
 const Promotions = React.lazy(() => import('./v2/pages/Promotions/index'));
 const NotFound = React.lazy(() => import('./v2/pages/NotFound'));
 const SystemLogs = React.lazy(() => import('./v2/pages/SystemLogs/index'));
@@ -182,6 +183,11 @@ function App() {
                 <Route path="/v2/reports" element={
                   <ProtectedRoute allowedRoles={['admin']} requiredPermission="acc_reports">
                     <V2Reports />
+                  </ProtectedRoute>
+                } />
+                <Route path="/v2/insights" element={
+                  <ProtectedRoute allowedRoles={['admin']} requiredPermission="acc_reports">
+                    <V2Insights />
                   </ProtectedRoute>
                 } />
 
