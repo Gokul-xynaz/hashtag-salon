@@ -196,6 +196,12 @@ export default function OnlineBooking() {
             const data = result.data;
             
             if (data.status === 'success') {
+                if (typeof window !== 'undefined' && typeof window.gtag === 'function') {
+                    window.gtag('event', 'booking_success', {
+                        value: typeof totalPrice === 'number' && totalPrice > 0 ? totalPrice : (data?.totalAmount || 0),
+                        currency: 'INR'
+                    });
+                }
                 localStorage.setItem(key,JSON.stringify([...recent,now]));
                 setStep(4);
             } else {
