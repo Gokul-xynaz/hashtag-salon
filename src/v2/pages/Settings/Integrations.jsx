@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../../components/Layout';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { db } from '../../../services/firebase';
-import { encrypt, decrypt } from '../../utils/crypto';
+import { db, functions } from '../../../services/firebase';
+import { httpsCallable } from 'firebase/functions';
 
 const PROVIDERS = [
     {
@@ -58,65 +58,31 @@ export default function IntegrationsSettings() {
     const [saving, setSaving]     = useState(false);
     const [testing, setTesting]   = useState(false);
     const [testPhone, setTestPhone] = useState('');
-    const [testResult, setTestResult] = useState(null); // { ok: bool, msg: string }
+    const [testResult, setTestResult] = useState(null);
     const [metaTemplates, setMetaTemplates] = useState([]);
     const [fetchingTemplates, setFetchingTemplates] = useState(false);
 
     const [config, setConfig] = useState({
         whatsappMode: 'web',
-        // UltraMsg
         ultramsgInstanceId: '',
-        ultramsgToken: '',
-        // Meta
         metaPhoneNumberId: '',
         metaWabaId: '',
-        metaAccessToken: '',
-        // Webhook
         webhookUrl: '',
         webhookHeaders: '{"Content-Type": "application/json"}',
         webhookPayload: '{"to": "{{phone}}", "body": "{{message}}"}',
-        // Triggers
         triggerAppointment: false,
         appointmentTemplate: '',
         triggerPayment: false,
         paymentTemplate: '',
         triggerArrears: false,
         arrearsTemplate: '',
-        // General
         autoSendAlerts: true,
     });
 
-    const fetchMetaTemplates = async (phoneId, token, showAlertOnError = false, wabaIdParam = null) => {
-        const tok = token || config.metaAccessToken;
-        let wabaId = wabaIdParam || config.metaWabaId;
-        
-        if (!tok) {
-            if (showAlertOnError) alert('Please set Access Token first.');
-            return;
-        }
-
-        setFetchingTemplates(true);
-        try {
-            if (!wabaId) {
-                throw new Error('Please enter your WhatsApp Business Account ID (WABA ID) in the configuration to sync templates.');
-            }
-
-            // Step 2: Get Templates using WABA ID
-            const templatesRes = await fetch(`https://graph.facebook.com/v22.0/${wabaId}/message_templates?access_token=${tok}`);
-            if (!templatesRes.ok) {
-                const errData = await templatesRes.json();
-                throw new Error(errData.error?.message || 'Failed to fetch templates');
-            }
-            const templatesData = await templatesRes.json();
-            const approved = (templatesData.data || []).filter(t => t.status === 'APPROVED');
-            setMetaTemplates(approved);
-            if (showAlertOnError) alert(`✅ Synced ${approved.length} approved templates!`);
-        } catch (e) {
-            console.error('Error fetching Meta templates:', e);
-            if (showAlertOnError) alert('❌ Template Sync Failed: ' + e.message);
-        } finally {
-            setFetchingTemplates(false);
-        }
+    const fetchMetaTemplates = async (wabaIdParam = null) => {
+        // Since tokens are now strictly backend-only, template syncing via frontend is disabled.
+        // It requires the token. 
+        alert("Template syncing must now be done manually via Meta Manager for security reasons. Enter template names below.");
     };
 
     useEffect(() => {
@@ -125,34 +91,24 @@ export default function IntegrationsSettings() {
                 const snap = await getDoc(doc(db, 'settings', 'integrations'));
                 if (snap.exists()) {
                     const data = snap.data();
-                    let decryptedAccessToken = '';
-                    if (data.metaAccessToken) {
-                        decryptedAccessToken = decrypt(data.metaAccessToken);
-                        data.metaAccessToken = decryptedAccessToken;
-                    }
-                    if (data.ultramsgToken) data.ultramsgToken = decrypt(data.ultramsgToken);
+                    // Remove tokens from being loaded, even if they exist
+                    delete data.metaAccessToken;
+                    delete data.ultramsgToken;
                     setConfig(prev => ({ ...prev, ...data }));
-
-                    if (data.whatsappMode === 'meta' && data.metaPhoneNumberId && decryptedAccessToken) {
-                        fetchMetaTemplates(data.metaPhoneNumberId, decryptedAccessToken);
-                    }
                 }
             } catch (e) { console.error(e); }
             finally { setLoading(false); }
         };
         fetchConfig();
-    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    }, []);
 
     const upd = (key, val) => setConfig(prev => ({ ...prev, [key]: val }));
 
     const handleSave = async () => {
         setSaving(true);
         try {
-            const dataToSave = {
-                ...config,
-                metaAccessToken: encrypt(config.metaAccessToken),
-                ultramsgToken: encrypt(config.ultramsgToken),
-            };
+            const dataToSave = { ...config };
+            // Ensure we don't overwrite/clear existing tokens that were saved previously (if any)
             await setDoc(doc(db, 'settings', 'integrations'), dataToSave, { merge: true });
             alert('✅ Integration settings saved!');
         } catch (e) { alert('❌ Failed to save: ' + e.message); }
@@ -164,47 +120,16 @@ export default function IntegrationsSettings() {
         setTesting(true);
         setTestResult(null);
         try {
-            let phone = String(testPhone).replace(/\D/g, '');
-            if (phone.length === 10) phone = '91' + phone;
-            const msg = '👋 Test message from Hashtag Integration Hub!';
-
             if (config.whatsappMode === 'web') {
+                let phone = String(testPhone).replace(/\D/g, '');
+                if (phone.length === 10) phone = '91' + phone;
+                const msg = '👋 Test message from Hashtag Integration Hub!';
                 window.open(`https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`, '_blank');
                 setTestResult({ ok: true, msg: 'WhatsApp Web opened successfully.' });
-            } else if (config.whatsappMode === 'ultramsg') {
-                if (!config.ultramsgInstanceId || !config.ultramsgToken) throw new Error('Missing UltraMsg credentials');
-                const url = `https://api.ultramsg.com/${config.ultramsgInstanceId}/messages/chat`;
-                const body = new URLSearchParams({ token: config.ultramsgToken, to: phone, body: msg });
-                const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body.toString() });
-                const data = await res.json();
-                if (data.error) throw new Error(data.error);
-                setTestResult({ ok: true, msg: 'Message sent via UltraMsg!' });
-            } else if (config.whatsappMode === 'meta') {
-                if (!config.metaPhoneNumberId || !config.metaAccessToken) throw new Error('Missing Meta credentials');
-                const url = `https://graph.facebook.com/v22.0/${config.metaPhoneNumberId}/messages`;
-                const payload = {
-                    messaging_product: 'whatsapp',
-                    recipient_type: 'individual',
-                    to: phone,
-                    type: 'template',
-                    template: { name: 'hello_world', language: { code: 'en_US' } },
-                };
-                const res = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${config.metaAccessToken}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload),
-                });
-                const data = await res.json();
-                if (data.error) throw new Error(data.error.message);
-                setTestResult({ ok: true, msg: 'hello_world template sent via Meta API!' });
-            } else if (config.whatsappMode === 'webhook') {
-                if (!config.webhookUrl) throw new Error('Missing Webhook URL');
-                let headers = {};
-                try { headers = JSON.parse(config.webhookHeaders); } catch { /* ignore */ }
-                const bodyStr = config.webhookPayload.replace(/{{phone}}/g, phone).replace(/{{message}}/g, msg);
-                const res = await fetch(config.webhookUrl, { method: 'POST', headers, body: bodyStr });
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                setTestResult({ ok: true, msg: 'Webhook call succeeded!' });
+            } else {
+                const testWhatsApp = httpsCallable(functions, 'testWhatsApp');
+                await testWhatsApp({ phone: testPhone });
+                setTestResult({ ok: true, msg: 'Test message triggered via secure backend!' });
             }
         } catch (e) {
             setTestResult({ ok: false, msg: e.message });
@@ -302,7 +227,6 @@ export default function IntegrationsSettings() {
                 }
             `}</style>
 
-            {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                 <div>
                     <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '900' }}>Integrations ⚡</h1>
@@ -319,7 +243,6 @@ export default function IntegrationsSettings() {
                 </button>
             </div>
 
-            {/* ─── Section A: WhatsApp Provider ─── */}
             <div className="v2-card" style={{ marginBottom: '1.5rem' }}>
                 <p className="integ-section-title">📱 WhatsApp Gateway</p>
                 <p className="integ-section-desc">Choose your sending provider. Credentials are stored securely in your workspace.</p>
@@ -346,22 +269,12 @@ export default function IntegrationsSettings() {
                     ))}
                 </div>
 
-                {/* Credential Fields */}
                 {config.whatsappMode === 'ultramsg' && (
                     <div className="integ-cred-panel">
                         <h3 style={{ margin: '0 0 1rem', fontSize: '0.85rem', fontWeight: '800', color: '#334155' }}>🤖 UltraMsg Configuration</h3>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem' }}>
                             <div className="integ-field"><label>Instance ID</label><input type="text" value={config.ultramsgInstanceId} onChange={e => upd('ultramsgInstanceId', e.target.value)} placeholder="instanceXXXXX" /></div>
-                            <div className="integ-field"><label>API Token</label>
-                                {config.ultramsgToken ? (
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.7rem 0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', boxSizing: 'border-box' }}>
-                                        <span style={{ flex: 1, color: '#10b981', fontWeight: '700', fontSize: '0.85rem' }}>✅ Token is set</span>
-                                        <button type="button" onClick={() => upd('ultramsgToken', '')} style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', color: '#ef4444', background: '#fee2e2', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '700' }}>Remove</button>
-                                    </div>
-                                ) : (
-                                    <input type="password" value={config.ultramsgToken} onChange={e => upd('ultramsgToken', e.target.value)} placeholder="Secret Token" />
-                                )}
-                            </div>
+                            <p style={{ margin: 0, fontSize: '0.72rem', color: '#ef4444' }}>⚠️ API Tokens must be configured in Firebase Secret Manager (ULTRAMSG_TOKEN).</p>
                         </div>
                     </div>
                 )}
@@ -369,7 +282,7 @@ export default function IntegrationsSettings() {
                 {config.whatsappMode === 'meta' && (
                     <div className="integ-cred-panel">
                         <h3 style={{ margin: '0 0 1rem', fontSize: '0.85rem', fontWeight: '800', color: '#334155' }}>♾️ Meta Cloud API Configuration</h3>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '0.75rem' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '0.75rem' }}>
                             <div className="integ-field">
                                 <label>Phone Number ID</label>
                                 <input type="text" value={config.metaPhoneNumberId || ''} onChange={e => upd('metaPhoneNumberId', e.target.value)} placeholder="e.g. 123456789012345" />
@@ -378,32 +291,12 @@ export default function IntegrationsSettings() {
                                 <label>WhatsApp Business Account ID (WABA ID)</label>
                                 <input type="text" value={config.metaWabaId || ''} onChange={e => upd('metaWabaId', e.target.value)} placeholder="e.g. 987654321098765 (Optional lookup fallback)" />
                             </div>
-                            <div className="integ-field">
-                                <label>Permanent Access Token</label>
-                                {config.metaAccessToken ? (
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.7rem 0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', boxSizing: 'border-box' }}>
-                                        <span style={{ flex: 1, color: '#10b981', fontWeight: '700', fontSize: '0.85rem' }}>✅ Token is set</span>
-                                        <button type="button" onClick={() => upd('metaAccessToken', '')} style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', color: '#ef4444', background: '#fee2e2', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '700' }}>Remove</button>
-                                    </div>
-                                ) : (
-                                    <input type="password" value={config.metaAccessToken || ''} onChange={e => upd('metaAccessToken', e.target.value)} placeholder="EAAxxxxxxxxxxxxx..." />
-                                )}
-                            </div>
                         </div>
+                        <p style={{ margin: 0, fontSize: '0.72rem', color: '#ef4444' }}>⚠️ Permanent Access Tokens must be configured in Firebase Secret Manager (META_ACCESS_TOKEN).</p>
                         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginTop: '0.75rem' }}>
                             <a href="https://business.facebook.com/latest/whatsapp_manager" target="_blank" rel="noreferrer" style={{ fontSize: '0.75rem', color: 'var(--v2-primary)', fontWeight: '600', textDecoration: 'none' }}>
                                 🔗 Open Meta WhatsApp Manager →
                             </a>
-                            {config.metaAccessToken && (
-                                <button
-                                    type="button"
-                                    onClick={() => fetchMetaTemplates(null, null, true)}
-                                    disabled={fetchingTemplates}
-                                    style={{ marginLeft: 'auto', padding: '0.45rem 1rem', fontSize: '0.72rem', background: '#e2e8f0', color: '#334155', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
-                                >
-                                    {fetchingTemplates ? '⏳ Syncing Templates...' : '🔄 Sync Templates'}
-                                </button>
-                            )}
                         </div>
                     </div>
                 )}
@@ -424,7 +317,6 @@ export default function IntegrationsSettings() {
                     </div>
                 )}
 
-                {/* Test Connection */}
                 <div style={{ marginTop: '1.5rem', paddingTop: '1.25rem', borderTop: '1px solid var(--v2-border)', display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
                     <input
                         type="text"
@@ -448,7 +340,6 @@ export default function IntegrationsSettings() {
                 </div>
             </div>
 
-            {/* ─── Section B: Automation Triggers ─── */}
             <div className="v2-card" style={{ marginBottom: '1.5rem' }}>
                 <p className="integ-section-title">🤖 Automation Triggers</p>
                 <p className="integ-section-desc">
@@ -479,82 +370,15 @@ export default function IntegrationsSettings() {
                                 <div style={{ fontSize: '0.75rem', color: 'var(--v2-text-muted)', marginBottom: config[t.id] ? '0.75rem' : 0 }}>{t.desc}</div>
                                 {config[t.id] && (
                                     <div style={{ animation: 'fadeSlideIn 0.2s ease', marginTop: '0.5rem' }}>
-                                        {config.whatsappMode === 'meta' ? (
-                                            metaTemplates.length > 0 ? (
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                                                    <select
-                                                        value={config[t.templateKey] || ''}
-                                                        onChange={e => {
-                                                            const name = e.target.value;
-                                                            upd(t.templateKey, name);
-                                                            const tmpl = metaTemplates.find(x => x.name === name);
-                                                            if (tmpl) {
-                                                                upd(`${t.templateKey}Language`, tmpl.language);
-                                                            }
-                                                        }}
-                                                        style={{ width: '100%', padding: '0.6rem 0.85rem', border: '1px solid #86efac', borderRadius: '7px', fontSize: '0.85rem', outline: 'none', background: 'white', cursor: 'pointer', boxSizing: 'border-box' }}
-                                                    >
-                                                        <option value="">-- Select Approved Meta Template --</option>
-                                                        {metaTemplates.map(tmpl => (
-                                                            <option key={tmpl.name} value={tmpl.name}>
-                                                                {tmpl.name} ({tmpl.language}) [{tmpl.category}]
-                                                            </option>
-                                                        ))}
-                                                    </select>
-                                                    <div style={{ fontSize: '0.72rem', color: 'var(--v2-text-sub)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                        <span>Selected: <strong>{config[t.templateKey] || 'None'}</strong></span>
-                                                        <button 
-                                                            type="button" 
-                                                            onClick={() => {
-                                                                const manual = prompt('Enter Meta Template name manually:', config[t.templateKey] || '');
-                                                                if (manual !== null) {
-                                                                    upd(t.templateKey, manual);
-                                                                    const lang = prompt('Enter Template Language Code (e.g. en_US, en, hi):', config[`${t.templateKey}Language`] || 'en_US');
-                                                                    if (lang) upd(`${t.templateKey}Language`, lang);
-                                                                }
-                                                            }}
-                                                            style={{ background: 'none', border: 'none', color: 'var(--v2-primary)', cursor: 'pointer', padding: 0, fontSize: '0.7rem', fontWeight: '700' }}
-                                                        >
-                                                            ✍️ Edit Manually
-                                                        </button>
-                                                    </div>
-                                                    {(() => {
-                                                        const tmpl = metaTemplates.find(x => x.name === config[t.templateKey]);
-                                                        const bodyComp = tmpl?.components?.find(c => c.type === 'BODY' || c.type === 'body');
-                                                        if (bodyComp?.text) {
-                                                            return (
-                                                                <div style={{ background: '#f1f5f9', padding: '0.6rem 0.85rem', borderRadius: '6px', fontSize: '0.75rem', color: 'var(--v2-text-sub)', borderLeft: '3px solid var(--v2-primary)', marginTop: '0.2rem', whiteSpace: 'pre-wrap' }}>
-                                                                    <strong>Template Text Preview:</strong>
-                                                                    <p style={{ margin: '0.25rem 0 0', fontFamily: 'monospace', color: 'var(--v2-text-main)' }}>{bodyComp.text}</p>
-                                                                </div>
-                                                            );
-                                                        }
-                                                        return null;
-                                                    })()}
-                                                </div>
-                                            ) : (
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                                                    <input
-                                                        type="text"
-                                                        value={config[t.templateKey] || ''}
-                                                        onChange={e => upd(t.templateKey, e.target.value)}
-                                                        placeholder="Enter approved Meta template name (e.g. appointment_confirm)"
-                                                        style={{ padding: '0.6rem 0.85rem', border: '1px solid #86efac', borderRadius: '7px', width: '100%', fontSize: '0.85rem', outline: 'none', background: 'white', boxSizing: 'border-box' }}
-                                                    />
-                                                    <span style={{ fontSize: '0.68rem', color: 'var(--v2-text-muted)' }}>
-                                                        No templates loaded. Enter manually or click <strong>Sync Templates</strong> above.
-                                                    </span>
-                                                </div>
-                                            )
-                                        ) : (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                                             <input
                                                 type="text"
                                                 value={config[t.templateKey] || ''}
                                                 onChange={e => upd(t.templateKey, e.target.value)}
-                                                placeholder="Message text to send"
+                                                placeholder={config.whatsappMode === 'meta' ? "Enter approved Meta template name (e.g. appointment_confirm)" : "Message text to send"}
                                                 style={{ padding: '0.6rem 0.85rem', border: '1px solid #86efac', borderRadius: '7px', width: '100%', fontSize: '0.85rem', outline: 'none', background: 'white', boxSizing: 'border-box' }}
                                             />
-                                        )}
+                                        </div>
                                     </div>
                                 )}
                             </div>
@@ -563,7 +387,6 @@ export default function IntegrationsSettings() {
                 </div>
             </div>
 
-            {/* ─── Section C: Meta Business Info ─── */}
             <div className="v2-card">
                 <p className="integ-section-title">ℹ️ Meta Business Info</p>
                 <p className="integ-section-desc">Reference information for your WhatsApp Business Account.</p>

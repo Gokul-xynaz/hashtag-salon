@@ -143,11 +143,45 @@ export default function V2Calendar() {
 
     const handleMoveAppointment = async (apptId, targetStylistId, targetHour) => {
         try {
+            const appt = appts.find(a => a.id === apptId);
+            if (!appt) return;
+
             const targetStylist = stylists.find(s => s.id === targetStylistId);
             const targetStylistName = targetStylist ? targetStylist.name : 'Unassigned / Online';
             
             const newDate = new Date(current);
             newDate.setHours(targetHour, 0, 0, 0);
+            
+            const movedStart = newDate.getTime();
+            const movedEnd = movedStart + ((appt.totalDuration || 60) * 60 * 1000);
+
+            const stylistAppts = appts.filter(a => a.id !== apptId && (a.stylistId === targetStylistId || a.stylistId === 'multiple' || a.stylistId === 'unassigned'));
+            const hasApptCollision = stylistAppts.some(a => {
+                if (!a.timestamp) return false;
+                const existingStart = a.timestamp.toDate().getTime();
+                const existingEnd = existingStart + ((a.totalDuration || 60) * 60 * 1000);
+                return (movedStart < existingEnd && movedEnd > existingStart);
+            });
+
+            if (hasApptCollision) {
+                alert('Cannot move appointment: Overlaps with an existing appointment for this stylist.');
+                return;
+            }
+
+            const targetDateStr = toLocalDateStr(newDate);
+            const stylistBlocks = blocks.filter(b => b.date === targetDateStr && (b.stylistId === targetStylistId || !b.stylistId));
+            const hasBlockCollision = stylistBlocks.some(b => {
+                const blockStartDt = new Date(newDate);
+                blockStartDt.setHours(b.startHour || 0, 0, 0, 0);
+                const blockEndDt = new Date(newDate);
+                blockEndDt.setHours(b.endHour || 24, 0, 0, 0);
+                return (movedStart < blockEndDt.getTime() && movedEnd > blockStartDt.getTime());
+            });
+
+            if (hasBlockCollision) {
+                alert('Cannot move appointment: Stylist has a calendar block at this time.');
+                return;
+            }
             
             await updateDoc(doc(db, 'appointments', apptId), {
                 stylistId: targetStylistId,
@@ -168,6 +202,38 @@ export default function V2Calendar() {
             
             const newDate = new Date(targetDate);
             newDate.setHours(originalDate.getHours(), originalDate.getMinutes(), originalDate.getSeconds(), originalDate.getMilliseconds());
+            
+            const movedStart = newDate.getTime();
+            const movedEnd = movedStart + ((appt.totalDuration || 60) * 60 * 1000);
+            const targetStylistId = appt.stylistId;
+
+            const stylistAppts = appts.filter(a => a.id !== apptId && (a.stylistId === targetStylistId || a.stylistId === 'multiple' || a.stylistId === 'unassigned'));
+            const hasApptCollision = stylistAppts.some(a => {
+                if (!a.timestamp) return false;
+                const existingStart = a.timestamp.toDate().getTime();
+                const existingEnd = existingStart + ((a.totalDuration || 60) * 60 * 1000);
+                return (movedStart < existingEnd && movedEnd > existingStart);
+            });
+
+            if (hasApptCollision) {
+                alert('Cannot move appointment: Overlaps with an existing appointment for this stylist on the new date.');
+                return;
+            }
+
+            const targetDateStr = toLocalDateStr(newDate);
+            const stylistBlocks = blocks.filter(b => b.date === targetDateStr && (b.stylistId === targetStylistId || !b.stylistId));
+            const hasBlockCollision = stylistBlocks.some(b => {
+                const blockStartDt = new Date(newDate);
+                blockStartDt.setHours(b.startHour || 0, 0, 0, 0);
+                const blockEndDt = new Date(newDate);
+                blockEndDt.setHours(b.endHour || 24, 0, 0, 0);
+                return (movedStart < blockEndDt.getTime() && movedEnd > blockStartDt.getTime());
+            });
+
+            if (hasBlockCollision) {
+                alert('Cannot move appointment: Stylist has a calendar block at this time.');
+                return;
+            }
             
             await updateDoc(doc(db, 'appointments', apptId), {
                 timestamp: Timestamp.fromDate(newDate)

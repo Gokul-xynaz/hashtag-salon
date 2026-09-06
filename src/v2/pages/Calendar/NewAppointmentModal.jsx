@@ -271,6 +271,7 @@ export default function NewAppointmentModal({ defaultDate, defaultStylistId, onC
             const paying = payingNowNum;
             const due    = Math.max(0, grandTotal - paying);
 
+            const isUpdate = isCheckout && prefillAppointment?.id;
             const appointmentData = {
                 clientName:   selectedClient?.name || (isWalkin ? 'Walk-in' : clientSearch || 'Walk-in'),
                 clientPhone:  selectedClient?.phone || '',
@@ -300,10 +301,15 @@ export default function NewAppointmentModal({ defaultDate, defaultStylistId, onC
                 notes,
                 status:       due > 0 ? 'unpaid' : 'completed',
                 timestamp:    Timestamp.fromDate(safedt),
-                createdAt:    serverTimestamp(),
                 v2:           true,
-                // Track if this bill was converted from an online booking
-                ...(isCheckout && prefillAppointment?.id ? { convertedFromBookingId: prefillAppointment.id, source: 'checkout_converted' } : {}),
+                ...(isUpdate ? { 
+                    updatedAt: serverTimestamp(),
+                    checkedOutAt: serverTimestamp(),
+                    checkedOutNote: 'Services modified at checkout',
+                    source: 'checkout_converted'
+                } : { 
+                    createdAt: serverTimestamp() 
+                }),
             };
 
             // If client exists in DB, update globalStats atomically
@@ -311,26 +317,28 @@ export default function NewAppointmentModal({ defaultDate, defaultStylistId, onC
                 await runTransaction(db, async (tx) => {
                     const cRef = doc(db, 'customers', selectedClient.phone);
                     const cSnap = await tx.get(cRef);
-                    const aptRef = doc(collection(db, 'appointments'));
-                    tx.set(aptRef, appointmentData);
+                    
+                    if (isUpdate) {
+                        const aptRef = doc(db, 'appointments', prefillAppointment.id);
+                        tx.update(aptRef, appointmentData);
+                    } else {
+                        const aptRef = doc(collection(db, 'appointments'));
+                        tx.set(aptRef, appointmentData);
+                    }
+
                     if (cSnap.exists()) {
                         const stats = cSnap.data().globalStats || {};
                         tx.update(cRef, {
-                            'globalStats.totalVisits': (stats.totalVisits || 0) + 1,
+                            'globalStats.totalVisits': (stats.totalVisits || 0) + (isUpdate ? 0 : 1),
                         });
                     }
                 });
             } else {
-                await addDoc(collection(db, 'appointments'), appointmentData);
-            }
-
-            // If converting from an online booking, mark original as completed
-            if (isCheckout && prefillAppointment?.id) {
-                await updateDoc(doc(db, 'appointments', prefillAppointment.id), {
-                    status: 'completed',
-                    checkedOutAt: serverTimestamp(),
-                    checkedOutNote: 'Services modified at checkout',
-                });
+                if (isUpdate) {
+                    await updateDoc(doc(db, 'appointments', prefillAppointment.id), appointmentData);
+                } else {
+                    await addDoc(collection(db, 'appointments'), appointmentData);
+                }
             }
 
             // Trigger automated payment notification based on active integrations config

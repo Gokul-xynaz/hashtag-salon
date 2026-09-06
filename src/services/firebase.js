@@ -16,10 +16,12 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Export Auth + Firestore + Storage for use across app
+// Export Auth + Firestore + Storage + Functions for use across app
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
+import { getFunctions } from "firebase/functions";
+export const functions = getFunctions(app, "asia-south1");
 
 // Enable offline persistence to drastically reduce reads on the free tier
 enableIndexedDbPersistence(db).catch((err) => {

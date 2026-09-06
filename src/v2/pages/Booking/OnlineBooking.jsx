@@ -1,9 +1,11 @@
 /* eslint-disable */
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useData } from '../../../context/DataProvider';
-import { collection, addDoc, query, where, getDocs, Timestamp, serverTimestamp } from 'firebase/firestore';
-import { db } from '../../../services/firebase';
+import { collection, query, where, getDocs, Timestamp, serverTimestamp } from 'firebase/firestore';
+import { db, functions } from '../../../services/firebase';
+import { httpsCallable } from 'firebase/functions';
 import { HASHTAG_SERVICES } from '../../utils/hashtagServices';
+import { BUSINESS_HOURS } from '../../utils/businessHours';
 
 const buildDateStrip = () => {
     const result = [];
@@ -20,24 +22,35 @@ const buildDateStrip = () => {
     return result;
 };
 
-const BANDS = [
-    { label: 'Morning',   hours: [10, 11, 12] },
-    { label: 'Afternoon', hours: [13, 14, 15, 16] },
-    { label: 'Evening',   hours: [17, 18, 19] },
-];
+const getBands = (start, end) => {
+    const m = [], a = [], e = [];
+    for (let h = start; h < end; h++) {
+        if (h < 12) m.push(h);
+        else if (h < 17) a.push(h);
+        else e.push(h);
+    }
+    return [
+        { label: 'Morning', hours: m },
+        { label: 'Afternoon', hours: a },
+        { label: 'Evening', hours: e }
+    ].filter(b => b.hours.length > 0);
+};
 
-const buildSlots = () => {
+const buildSlots = (start, end, interval) => {
     const all = [];
-    for (let h = 10; h <= 19; h++) {
-        const time = `${String(h).padStart(2,'0')}:00`;
-        const label = new Date(2000,0,1,h,0).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
-        all.push({ time, label, hour: h });
+    for (let h = start; h < end; h++) {
+        for (let m = 0; m < 60; m += interval) {
+            const time = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+            const label = new Date(2000, 0, 1, h, m).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+            all.push({ time, label, hour: h, minute: m });
+        }
     }
     return all;
 };
 
+const BANDS = getBands(BUSINESS_HOURS.openingHour, BUSINESS_HOURS.closingHour);
 const DATE_STRIP = buildDateStrip();
-const ALL_SLOTS  = buildSlots();
+const ALL_SLOTS  = buildSlots(BUSINESS_HOURS.openingHour, BUSINESS_HOURS.closingHour, BUSINESS_HOURS.slotIntervalMinutes);
 
 const formatPrice = (p) => {
     if (typeof p === 'number') return `₹${p}`;
@@ -106,49 +119,58 @@ export default function OnlineBooking() {
 
     const goToStep = (n) => { setStep(n); if (n > 1) window.history.pushState({ bookingStep: n }, ''); };
 
-    // Load booked slots based on available professionals
+    // Load booked slots based on available professionals via server callable
     useEffect(() => {
         if (step!==2||!date) return;
         const load = async () => {
             setLoading(true);
             try {
-                const s = new Date(date); s.setHours(0,0,0,0);
-                const e = new Date(date); e.setHours(23,59,59,999);
-                const q = query(collection(db,'appointments'), where('timestamp','>=',Timestamp.fromDate(s)), where('timestamp','<=',Timestamp.fromDate(e)));
-                const snap = await getDocs(q);
-                const allApps = snap.docs.map(d=>({id:d.id,...d.data()}));
+                const getAvailability = httpsCallable(functions, 'getAvailability');
+                const res = await getAvailability({ 
+                    date, 
+                    cartItemIds: cart.map(s => s.id || s.name),
+                    requestedStylistId: "any" 
+                });
                 
-                // Determine which staff are relevant based on category
-                const hasSkin = cart.some(s=>s.category?.includes('Skin') || s.category?.includes('Facial'));
-                const pool = hasSkin
-                    ? activeStylistMap.filter(s => s.name.toLowerCase().includes('uvanciya'))
-                    : activeStylistMap.filter(s => !s.name.toLowerCase().includes('uvanciya'));
-                
-                if (pool.length === 0) {
-                    setBookedTimes([]);
+                const { totalDuration, stylistSchedules } = res.data;
+                const reqDurationMs = totalDuration * 60 * 1000;
+                const blockedTimes = [];
+
+                if (!stylistSchedules || stylistSchedules.length === 0) {
+                    // No staff eligible at all
+                    setBookedTimes(ALL_SLOTS.map(s => s.time));
                     return;
                 }
 
-                const active = allApps.filter(a => a.status!=='cancelled'&&a.status!=='void'&&a.status!=='no_show');
-                const bookedByHour = {};
-                active.forEach(a => {
-                    if (!a.timestamp) return;
-                    const hr = `${String(a.timestamp.toDate().getHours()).padStart(2,'0')}:00`;
-                    if (!bookedByHour[hr]) bookedByHour[hr] = new Set();
-                    bookedByHour[hr].add(a.stylistId);
+                const closingDt = new Date(date);
+                closingDt.setHours(BUSINESS_HOURS.closingHour, 0, 0, 0);
+
+                ALL_SLOTS.forEach(slot => {
+                    const reqStartDt = new Date(date);
+                    reqStartDt.setHours(slot.hour, slot.minute, 0, 0);
+                    const reqStart = reqStartDt.getTime();
+                    const reqEnd = reqStart + reqDurationMs;
+
+                    if (reqEnd > closingDt.getTime()) {
+                        blockedTimes.push(slot.time);
+                        return;
+                    }
+
+                    const isAllBlocked = stylistSchedules.every(staff => {
+                        return staff.busyIntervals.some(interval => {
+                            return (reqStart < interval.end && reqEnd > interval.start);
+                        });
+                    });
+
+                    if (isAllBlocked) blockedTimes.push(slot.time);
                 });
                 
-                const blockedTimes = [];
-                Object.entries(bookedByHour).forEach(([hr, busyIds]) => {
-                    // A time slot is only blocked if ALL staff in the pool are booked
-                    if (pool.every(ps => busyIds.has(ps.id))) blockedTimes.push(hr);
-                });
                 setBookedTimes(blockedTimes);
             } catch(err){ console.error(err); }
             finally { setLoading(false); }
         };
         load();
-    }, [date, step, cart, activeStylistMap]);
+    }, [date, step, cart]);
 
     const confirm = async (e) => {
         e.preventDefault();
@@ -160,28 +182,29 @@ export default function OnlineBooking() {
         if (recent.length>=3) return alert('Max 3 bookings per 24 hrs. Contact the salon directly.');
         setSubmitting(true);
         try {
-            const [h,m] = time.split(':').map(Number);
-            const dt = new Date(date); dt.setHours(h,m,0,0);
+            const createBooking = httpsCallable(functions, 'createBooking');
+            const payload = {
+                name: customer.name,
+                phone: customer.phone,
+                notes: customer.notes,
+                cartItemIds: cart.map(s => s.id || s.name),
+                date: date,
+                time: time
+            };
             
-            // Auto-assign any stylist
-            let resolved = null;
-            const hasSkin = cart.some(s=>s.category?.includes('Skin') || s.category?.includes('Facial'));
-            if (hasSkin) resolved = activeStylistMap.find(s=>s.name.toLowerCase().includes('uvanciya'));
-            else { 
-                const hs=activeStylistMap.filter(s=>!s.name.toLowerCase().includes('uvanciya')); 
-                if (hs.length > 0) resolved = hs[Math.floor(Math.random()*hs.length)]; 
+            const result = await createBooking(payload);
+            const data = result.data;
+            
+            if (data.status === 'success') {
+                localStorage.setItem(key,JSON.stringify([...recent,now]));
+                setStep(4);
+            } else {
+                throw new Error("Unexpected response from server.");
             }
-
-            await addDoc(collection(db,'appointments'), {
-                clientName: customer.name, clientPhone: customer.phone, notes: customer.notes,
-                stylistId: resolved?.id||'unassigned', stylistName: resolved?.name||'Any Professional',
-                services: cart.map(s=>({id:s.id,name:s.name,price:s.price||0,duration:s.duration||30})),
-                totalAmount: totalPrice, totalDuration, timestamp: Timestamp.fromDate(dt),
-                status:'pending', source:'online_widget', createdAt: serverTimestamp()
-            });
-            localStorage.setItem(key,JSON.stringify([...recent,now]));
-            setStep(4);
-        } catch(err){ console.error(err); alert('Booking failed: '+err.message); }
+        } catch(err){ 
+            console.error(err); 
+            alert('Booking failed: ' + (err.message || 'Unknown error occurred.')); 
+        }
         finally { setSubmitting(false); }
     };
 

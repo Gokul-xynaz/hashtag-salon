@@ -1,10 +1,11 @@
 /* eslint-disable */
 import { doc, getDoc } from 'firebase/firestore';
-import { db } from './firebase';
-import { decrypt } from '../v2/utils/crypto';
+import { db, functions } from './firebase';
+import { httpsCallable } from 'firebase/functions';
 
 /**
  * Sends a generic WhatsApp notification using the configured integration gateway.
+ * (Now restricted to 'web' mode only to prevent API secret exposure).
  */
 export const sendNotification = async (clientPhone, messageText, templateName = null, clientName = 'Customer', params = {}) => {
     try {
@@ -14,96 +15,23 @@ export const sendNotification = async (clientPhone, messageText, templateName = 
         const config = snap.data();
         const mode = config.whatsappMode || 'web';
         
-        let phone = String(clientPhone).replace(/\D/g, '');
-        if (!phone) return { success: false, error: 'No phone number' };
-        if (phone.length === 10) phone = '91' + phone;
-
-        // Custom template replacement for free-text modes
-        let bodyText = messageText || '';
-        bodyText = bodyText.replace(/{{name}}/g, clientName);
-        Object.keys(params).forEach(k => {
-            bodyText = bodyText.replace(new RegExp(`{{${k}}}`, 'g'), params[k]);
-        });
-
         if (mode === 'web') {
+            let phone = String(clientPhone).replace(/\D/g, '');
+            if (!phone) return { success: false, error: 'No phone number' };
+            if (phone.length === 10) phone = '91' + phone;
+
+            let bodyText = messageText || '';
+            bodyText = bodyText.replace(/{{name}}/g, clientName);
+            Object.keys(params).forEach(k => {
+                bodyText = bodyText.replace(new RegExp(`{{${k}}}`, 'g'), params[k]);
+            });
+
             const url = `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(bodyText)}`;
             window.open(url, '_blank');
             return { success: true, mode: 'web' };
         }
 
-        if (mode === 'ultramsg') {
-            const token = decrypt(config.ultramsgToken);
-            if (!config.ultramsgInstanceId || !token) throw new Error('Missing UltraMsg configuration credentials');
-            
-            const url = `https://api.ultramsg.com/${config.ultramsgInstanceId}/messages/chat`;
-            const body = new URLSearchParams({ token, to: phone, body: bodyText });
-            const res = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: body.toString()
-            });
-            const data = await res.json();
-            if (data.error) throw new Error(data.error);
-            return { success: true, mode: 'ultramsg' };
-        }
-
-        if (mode === 'meta') {
-            const token = decrypt(config.metaAccessToken);
-            if (!config.metaPhoneNumberId || !token) throw new Error('Missing Meta Access Token or Phone Number ID');
-
-            const url = `https://graph.facebook.com/v22.0/${config.metaPhoneNumberId}/messages`;
-            const nameToUse = templateName || config.appointmentTemplate || 'hello_world';
-            const langCodeInput = params.languageCode || 'en_US';
-            const langCode = langCodeInput.startsWith('en') ? 'en' : langCodeInput;
-            const payload = {
-                messaging_product: 'whatsapp',
-                recipient_type: 'individual',
-                to: phone,
-                type: 'template',
-                template: {
-                    name: nameToUse,
-                    language: { code: langCode }
-                }
-            };
-
-            // Map variables if provided
-            if (params.variables && params.variables.length > 0) {
-                payload.template.components = [{
-                    type: 'body',
-                    parameters: params.variables.map(v => ({ type: 'text', text: String(v) }))
-                }];
-            }
-            const res = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(payload)
-            });
-            const data = await res.json();
-            if (data.error) throw new Error(data.error.message || 'Meta API error');
-            return { success: true, mode: 'meta' };
-        }
-
-        if (mode === 'webhook') {
-            if (!config.webhookUrl) throw new Error('Missing Webhook Endpoint URL');
-            let headers = {};
-            try { headers = JSON.parse(config.webhookHeaders); } catch (_) {}
-            const bodyStr = config.webhookPayload
-                .replace(/{{phone}}/g, phone)
-                .replace(/{{message}}/g, bodyText);
-            
-            const res = await fetch(config.webhookUrl, {
-                method: 'POST',
-                headers,
-                body: bodyStr
-            });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            return { success: true, mode: 'webhook' };
-        }
-
-        return { success: false, error: 'Unsupported mode' };
+        return { success: false, error: 'Direct API sends are deprecated. Use event triggers.' };
     } catch (e) {
         console.error('Notification dispatch error:', e);
         return { success: false, error: e.message };
@@ -115,11 +43,19 @@ export const sendNotification = async (clientPhone, messageText, templateName = 
  */
 export const triggerAppointmentNotification = async (appointment) => {
     try {
+        if (!appointment.id) return;
         const snap = await getDoc(doc(db, 'settings', 'integrations'));
         if (!snap.exists()) return;
         const config = snap.data();
         if (!config.triggerAppointment) return;
 
+        if (config.whatsappMode !== 'web') {
+            const sendWhatsApp = httpsCallable(functions, 'sendWhatsApp');
+            await sendWhatsApp({ appointmentId: appointment.id, eventType: 'booking_confirmation' });
+            return;
+        }
+
+        // Fallback for WhatsApp Web mode
         const clientName = appointment.clientName || 'Customer';
         const clientPhone = appointment.clientPhone;
         if (!clientPhone) return;
@@ -152,11 +88,19 @@ export const triggerAppointmentNotification = async (appointment) => {
  */
 export const triggerPaymentNotification = async (appointment) => {
     try {
+        if (!appointment.id) return;
         const snap = await getDoc(doc(db, 'settings', 'integrations'));
         if (!snap.exists()) return;
         const config = snap.data();
         if (!config.triggerPayment) return;
 
+        if (config.whatsappMode !== 'web') {
+            const sendWhatsApp = httpsCallable(functions, 'sendWhatsApp');
+            await sendWhatsApp({ appointmentId: appointment.id, eventType: 'payment_confirmation' });
+            return;
+        }
+
+        // Fallback for WhatsApp Web mode
         const clientName = appointment.clientName || 'Customer';
         const clientPhone = appointment.clientPhone;
         if (!clientPhone) return;

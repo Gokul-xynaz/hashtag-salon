@@ -1,0 +1,19 @@
+{
+  "name": "functions",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "prebuild": "cp ../src/v2/utils/hashtagServices.js ./hashtagServices.js && cp ../src/v2/utils/businessHours.js ./businessHours.js && cp ../src/v2/utils/phoneUtils.js ./phoneUtils.js",
+    "build": "npm run prebuild",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "firebase-admin": "^14.3.0",
+    "firebase-functions": "^7.3.2"
+  }
+}
