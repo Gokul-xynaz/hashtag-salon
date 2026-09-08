@@ -89,7 +89,9 @@ export default function MarketingHub() {
                 throw new Error('Please configure WhatsApp Business Account ID (WABA ID) in Settings -> Integrations to sync templates.');
             }
 
-            const templatesRes = await fetch(`https://graph.facebook.com/v22.0/${wabaId}/message_templates?access_token=${tok}`);
+            const templatesRes = await fetch(`https://graph.facebook.com/v22.0/${wabaId}/message_templates`, {
+                headers: { 'Authorization': `Bearer ${tok}` }
+            });
             if (!templatesRes.ok) {
                 const errData = await templatesRes.json();
                 throw new Error(`[${templatesRes.status}] ${errData.error?.message || 'Failed to fetch templates'}`);

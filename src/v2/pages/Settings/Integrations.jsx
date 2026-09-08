@@ -94,7 +94,9 @@ export default function IntegrationsSettings() {
                 throw new Error('Please configure WhatsApp Business Account ID (WABA ID) to sync templates.');
             }
 
-            const res = await fetch(`https://graph.facebook.com/v22.0/${wabaId}/message_templates?access_token=${tok}`);
+            const res = await fetch(`https://graph.facebook.com/v22.0/${wabaId}/message_templates`, {
+                headers: { 'Authorization': `Bearer ${tok}` }
+            });
             if (!res.ok) {
                 const errData = await res.json();
                 throw new Error(`[${res.status}] ${errData.error?.message || 'Failed to fetch templates'}`);
@@ -140,10 +142,21 @@ export default function IntegrationsSettings() {
     const handleSave = async () => {
         setSaving(true);
         try {
+            const encMeta = encrypt(config.metaAccessToken);
+            const encUltra = encrypt(config.ultramsgToken);
+            
+            // Verify crypto works before saving
+            if (config.metaAccessToken && decrypt(encMeta) !== config.metaAccessToken) {
+                throw new Error("Encryption/decryption validation failed for Meta Token.");
+            }
+            if (config.ultramsgToken && decrypt(encUltra) !== config.ultramsgToken) {
+                throw new Error("Encryption/decryption validation failed for UltraMsg Token.");
+            }
+
             const dataToSave = {
                 ...config,
-                metaAccessToken: encrypt(config.metaAccessToken),
-                ultramsgToken: encrypt(config.ultramsgToken),
+                metaAccessToken: encMeta,
+                ultramsgToken: encUltra,
             };
             await setDoc(doc(db, 'settings', 'integrations'), dataToSave, { merge: true });
             alert('✅ Integration settings saved!');

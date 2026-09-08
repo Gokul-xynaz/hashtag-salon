@@ -40,6 +40,10 @@ export const decrypt = (cipherText) => {
             const keyChar = SECRET_KEY.charCodeAt((i / 2) % SECRET_KEY.length);
             result += String.fromCharCode(charCode ^ keyChar);
         }
+        // Validation: Ensure decrypted token contains only safe characters
+        if (!/^[A-Za-z0-9\-_.]+$/.test(result)) {
+            return null;
+        }
         return result;
     } catch (e) {
         // Do NOT log ciphertext or secrets
