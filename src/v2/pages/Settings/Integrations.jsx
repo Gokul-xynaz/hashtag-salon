@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../../components/Layout';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { db, functions } from '../../../services/firebase';
-import { httpsCallable } from 'firebase/functions';
+import { db } from '../../../services/firebase';
+import { encrypt, decrypt } from '../../utils/crypto';
 
 const PROVIDERS = [
     {
@@ -79,10 +79,36 @@ export default function IntegrationsSettings() {
         autoSendAlerts: true,
     });
 
-    const fetchMetaTemplates = async (wabaIdParam = null) => {
-        // Since tokens are now strictly backend-only, template syncing via frontend is disabled.
-        // It requires the token. 
-        alert("Template syncing must now be done manually via Meta Manager for security reasons. Enter template names below.");
+    const fetchMetaTemplates = async (wabaIdParam = null, token = null, showAlertOnError = false) => {
+        const tok = token || config.metaAccessToken;
+        let wabaId = wabaIdParam || config.metaWabaId;
+        
+        if (!tok) {
+            if (showAlertOnError) alert('Please set Access Token first.');
+            return;
+        }
+
+        setFetchingTemplates(true);
+        try {
+            if (!wabaId) {
+                throw new Error('Please configure WhatsApp Business Account ID (WABA ID) to sync templates.');
+            }
+
+            const res = await fetch(`https://graph.facebook.com/v22.0/${wabaId}/message_templates?access_token=${tok}`);
+            if (!res.ok) {
+                const errData = await res.json();
+                throw new Error(`[${res.status}] ${errData.error?.message || 'Failed to fetch templates'}`);
+            }
+            const data = await res.json();
+            const approved = (data.data || []).filter(t => t.status === 'APPROVED');
+            setMetaTemplates(approved);
+            if (showAlertOnError) alert(`✅ Loaded ${approved.length} approved templates from Meta!`);
+        } catch (e) {
+            console.error(e);
+            if (showAlertOnError) alert('❌ Error: ' + e.message);
+        } finally {
+            setFetchingTemplates(false);
+        }
     };
 
     useEffect(() => {
@@ -91,10 +117,17 @@ export default function IntegrationsSettings() {
                 const snap = await getDoc(doc(db, 'settings', 'integrations'));
                 if (snap.exists()) {
                     const data = snap.data();
-                    // Remove tokens from being loaded, even if they exist
-                    delete data.metaAccessToken;
-                    delete data.ultramsgToken;
+                    let decryptedAccessToken = '';
+                    if (data.metaAccessToken) {
+                        decryptedAccessToken = decrypt(data.metaAccessToken);
+                        data.metaAccessToken = decryptedAccessToken;
+                    }
+                    if (data.ultramsgToken) data.ultramsgToken = decrypt(data.ultramsgToken);
                     setConfig(prev => ({ ...prev, ...data }));
+
+                    if (data.whatsappMode === 'meta' && data.metaWabaId && decryptedAccessToken) {
+                        fetchMetaTemplates(data.metaWabaId, decryptedAccessToken);
+                    }
                 }
             } catch (e) { console.error(e); }
             finally { setLoading(false); }
@@ -107,8 +140,11 @@ export default function IntegrationsSettings() {
     const handleSave = async () => {
         setSaving(true);
         try {
-            const dataToSave = { ...config };
-            // Ensure we don't overwrite/clear existing tokens that were saved previously (if any)
+            const dataToSave = {
+                ...config,
+                metaAccessToken: encrypt(config.metaAccessToken),
+                ultramsgToken: encrypt(config.ultramsgToken),
+            };
             await setDoc(doc(db, 'settings', 'integrations'), dataToSave, { merge: true });
             alert('✅ Integration settings saved!');
         } catch (e) { alert('❌ Failed to save: ' + e.message); }
@@ -126,10 +162,24 @@ export default function IntegrationsSettings() {
                 const msg = '👋 Test message from Hashtag Integration Hub!';
                 window.open(`https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`, '_blank');
                 setTestResult({ ok: true, msg: 'WhatsApp Web opened successfully.' });
-            } else {
-                const testWhatsApp = httpsCallable(functions, 'testWhatsApp');
-                await testWhatsApp({ phone: testPhone });
-                setTestResult({ ok: true, msg: 'Test message triggered via secure backend!' });
+            } else if (config.whatsappMode === 'meta') {
+                if (!config.metaPhoneNumberId || !config.metaAccessToken) throw new Error('Missing Meta credentials');
+                const url = `https://graph.facebook.com/v22.0/${config.metaPhoneNumberId}/messages`;
+                const payload = {
+                    messaging_product: 'whatsapp',
+                    recipient_type: 'individual',
+                    to: phone,
+                    type: 'template',
+                    template: { name: 'hello_world', language: { code: 'en_US' } },
+                };
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${config.metaAccessToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                const data = await res.json();
+                if (data.error) throw new Error(`[${res.status}] ${data.error.message || data.error.type}`);
+                setTestResult({ ok: true, msg: 'hello_world template sent via Meta API!' });
             }
         } catch (e) {
             setTestResult({ ok: false, msg: e.message });
@@ -286,17 +336,40 @@ export default function IntegrationsSettings() {
                             <div className="integ-field">
                                 <label>Phone Number ID</label>
                                 <input type="text" value={config.metaPhoneNumberId || ''} onChange={e => upd('metaPhoneNumberId', e.target.value)} placeholder="e.g. 123456789012345" />
+                                <div style={{ fontSize: '0.65rem', color: 'var(--v2-text-muted)', marginTop: '0.25rem' }}>→ Used for sending WhatsApp messages</div>
                             </div>
                             <div className="integ-field">
                                 <label>WhatsApp Business Account ID (WABA ID)</label>
-                                <input type="text" value={config.metaWabaId || ''} onChange={e => upd('metaWabaId', e.target.value)} placeholder="e.g. 987654321098765 (Optional lookup fallback)" />
+                                <input type="text" value={config.metaWabaId || ''} onChange={e => upd('metaWabaId', e.target.value)} placeholder="e.g. 987654321098765" />
+                                <div style={{ fontSize: '0.65rem', color: 'var(--v2-text-muted)', marginTop: '0.25rem' }}>→ Used for template management/retrieval</div>
+                            </div>
+                            <div className="integ-field">
+                                <label>Permanent Access Token</label>
+                                {config.metaAccessToken ? (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.7rem 0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', boxSizing: 'border-box' }}>
+                                        <span style={{ flex: 1, color: '#10b981', fontWeight: '700', fontSize: '0.85rem' }}>✅ Token is set</span>
+                                        <button type="button" onClick={() => upd('metaAccessToken', '')} style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', color: '#ef4444', background: '#fee2e2', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '700' }}>Remove</button>
+                                    </div>
+                                ) : (
+                                    <input type="password" value={config.metaAccessToken || ''} onChange={e => upd('metaAccessToken', e.target.value)} placeholder="EAAxxxxxxxxxxxxx..." />
+                                )}
                             </div>
                         </div>
-                        <p style={{ margin: 0, fontSize: '0.72rem', color: '#ef4444' }}>⚠️ Permanent Access Tokens must be configured in Firebase Secret Manager (META_ACCESS_TOKEN).</p>
+                        <p style={{ margin: 0, fontSize: '0.72rem', color: '#ef4444' }}>⚠️ <strong>IMPORTANT:</strong> Meta App ID must NOT be used for WABA ID. Do not paste your Facebook App ID.</p>
                         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginTop: '0.75rem' }}>
                             <a href="https://business.facebook.com/latest/whatsapp_manager" target="_blank" rel="noreferrer" style={{ fontSize: '0.75rem', color: 'var(--v2-primary)', fontWeight: '600', textDecoration: 'none' }}>
                                 🔗 Open Meta WhatsApp Manager →
                             </a>
+                            {config.metaAccessToken && (
+                                <button
+                                    type="button"
+                                    onClick={() => fetchMetaTemplates(null, null, true)}
+                                    disabled={fetchingTemplates}
+                                    style={{ marginLeft: 'auto', padding: '0.45rem 1rem', fontSize: '0.72rem', background: '#e2e8f0', color: '#334155', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                                >
+                                    {fetchingTemplates ? '⏳ Syncing Templates...' : '🔄 Sync Templates'}
+                                </button>
+                            )}
                         </div>
                     </div>
                 )}

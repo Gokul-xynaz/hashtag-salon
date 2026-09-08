@@ -152,7 +152,8 @@ const ultraMsgTokenSecret = defineSecret("ULTRAMSG_TOKEN");
 const CALLABLE_OPTS = { 
     region: "asia-south1", 
     cors: true, 
-    secrets: [metaTokenSecret, ultraMsgTokenSecret] 
+    secrets: [metaTokenSecret, ultraMsgTokenSecret],
+    timeoutSeconds: 540 // Allow longer execution for bulk sends
 };
 
 export const sendWhatsApp = onCall(CALLABLE_OPTS, async (request) => {
@@ -483,3 +484,5 @@ export const createBooking = onCall(CALLABLE_OPTS, async (request) => {
         status: "success"
     };
 });
+
+

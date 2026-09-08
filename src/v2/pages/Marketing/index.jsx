@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Layout from '../../components/Layout';
 import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
-import { db } from '../../../services/firebase';
+import { db, storage } from '../../../services/firebase';
 import { decrypt } from '../../utils/crypto';
+
 
 const PARAM_SOURCES = [
     { value: 'name',    label: '👤 Customer Name' },
@@ -44,6 +45,10 @@ export default function MarketingHub() {
     const [isSending, setIsSending]             = useState(false);
     const [progressLogs, setProgressLogs]       = useState([]);
     const [sendSummary, setSendSummary]         = useState(null); // { sent, failed }
+
+    const [headerImageFile, setHeaderImageFile] = useState(null);
+    const [headerMediaId, setHeaderMediaId]     = useState('');
+    const [isUploadingImage, setIsUploadingImage] = useState(false);
 
     // Also keep free-text for non-meta modes
     const [messageText, setMessageText] = useState('Hi {{name}}, great news from us! Visit us this weekend for exclusive deals.');
@@ -87,7 +92,7 @@ export default function MarketingHub() {
             const templatesRes = await fetch(`https://graph.facebook.com/v22.0/${wabaId}/message_templates?access_token=${tok}`);
             if (!templatesRes.ok) {
                 const errData = await templatesRes.json();
-                throw new Error(errData.error?.message || 'Failed to fetch templates');
+                throw new Error(`[${templatesRes.status}] ${errData.error?.message || 'Failed to fetch templates'}`);
             }
             const templatesData = await templatesRes.json();
             const approved = (templatesData.data || []).filter(t => t.status === 'APPROVED');
@@ -163,6 +168,8 @@ export default function MarketingHub() {
         if (!tmpl) return;
 
         setMetaLang(tmpl.language || 'en_US');
+        setHeaderImageFile(null);
+        setHeaderMediaId('');
         
         const initialParams = [];
         let previewStr = '';
@@ -171,7 +178,7 @@ export default function MarketingHub() {
             const cType = c.type.toLowerCase();
             if (cType === 'header') {
                 if (c.format === 'IMAGE') {
-                    initialParams.push({ component: 'header', type: 'image', label: 'IMG URL', source: 'custom', value: '1263021382572370', useMediaId: true });
+                    initialParams.push({ component: 'header', type: 'image' });
                     previewStr += '[Image Header]\n';
                 } else if (c.format === 'DOCUMENT') {
                     initialParams.push({ component: 'header', type: 'document', label: 'DOC URL', source: 'custom', value: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf' });
@@ -218,7 +225,7 @@ export default function MarketingHub() {
 
 
 
-    const delay = ms => new Promise(r => setTimeout(r, ms));
+    const delay = ms => new Promise(res => setTimeout(res, ms));
 
     const resolveParam = (param, client) => {
         if (param.source === 'name')    return client.name || 'Customer';
@@ -229,7 +236,7 @@ export default function MarketingHub() {
     };
 
     const buildMetaPayload = (phone, client) => {
-        const langCode = metaLang.startsWith('en') ? 'en' : metaLang;
+        const langCode = metaLang;
         const payload = {
             messaging_product: 'whatsapp',
             recipient_type: 'individual',
@@ -246,8 +253,8 @@ export default function MarketingHub() {
             payload.template.components.push({
                 type: 'header',
                 parameters: headerParams.map(p => {
+                    if (p.type === 'image') return { type: 'image', image: { id: headerMediaId } };
                     const val = resolveParam(p, client) || ' ';
-                    if (p.type === 'image') return { type: 'image', image: p.useMediaId ? { id: val } : { link: val } };
                     if (p.type === 'document') return { type: 'document', document: { link: val } };
                     if (p.type === 'video') return { type: 'video', video: { link: val } };
                     return { type: 'text', text: val };
@@ -267,7 +274,7 @@ export default function MarketingHub() {
                 payload.template.components.push({
                     type: 'button',
                     sub_type: 'url',
-                    index: p.index,
+                    index: String(p.index),
                     parameters: [{ type: 'text', text: resolveParam(p, client) || ' ' }]
                 });
             });
@@ -318,13 +325,20 @@ export default function MarketingHub() {
                 } else if (mode === 'meta') {
                     const url  = `https://graph.facebook.com/v22.0/${gateway.metaPhoneNumberId}/messages`;
                     const body = buildMetaPayload(phone, client);
+                    
+                    // TEMPORARY SAFE DEBUG
+                    setProgressLogs(prev => [...prev, `[DEBUG] PAYLOAD: ${JSON.stringify(body)}`]);
+
                     const res  = await fetch(url, {
                         method: 'POST',
                         headers: { 'Authorization': `Bearer ${gateway.metaAccessToken}`, 'Content-Type': 'application/json' },
                         body: JSON.stringify(body),
                     });
                     const data = await res.json();
-                    if (data.error) throw new Error(data.error.message || 'Meta API Error');
+                    if (data.error) {
+                        setProgressLogs(prev => [...prev, `[DEBUG] FULL ERROR: ${JSON.stringify(data.error)}`]);
+                        throw new Error(`[${res.status}] ${data.error.message || 'Meta API Error'}`);
+                    }
                     setProgressLogs(prev => [...prev, `✅ Sent template "${metaTemplateName}" to ${name}`]);
                     await delay(500);
                 } else if (mode === 'webhook') {
@@ -594,6 +608,55 @@ export default function MarketingHub() {
                                         placeholder="Paste your approved template text here for reference..."
                                     />
                                 </div>
+                                
+                                {metaParams.some(p => p.type === 'image') && (
+                                    <div className="mkt-field" style={{ marginTop: '1rem', background: '#f8fafc', padding: '1rem', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
+                                        <label style={{ color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                            📷 Upload Template Header Image
+                                            {headerMediaId && <span style={{ color: '#10b981', fontSize: '0.7rem' }}>✓ Uploaded</span>}
+                                        </label>
+                                        <input 
+                                            type="file" 
+                                            accept="image/png, image/jpeg"
+                                            onChange={async (e) => {
+                                                const file = e.target.files[0];
+                                                if (!file) return;
+                                                setHeaderImageFile(file);
+                                                setIsUploadingImage(true);
+                                                try {
+                                                    const formData = new FormData();
+                                                    formData.append('messaging_product', 'whatsapp');
+                                                    formData.append('file', file);
+                                                    
+                                                    const phoneNumberId = gateway.metaPhoneNumberId || '1183269708198647';
+                                                    const response = await fetch(`https://graph.facebook.com/v22.0/${phoneNumberId}/media`, {
+                                                        method: 'POST',
+                                                        headers: {
+                                                            'Authorization': `Bearer ${gateway.metaAccessToken}`
+                                                        },
+                                                        body: formData
+                                                    });
+                                                    
+                                                    const data = await response.json();
+                                                    if (!response.ok) {
+                                                        throw new Error(data.error?.message || 'Media upload failed');
+                                                    }
+                                                    setHeaderMediaId(data.id);
+                                                } catch (err) {
+                                                    console.error("Image upload to Meta failed:", err);
+                                                    alert("Image upload to Meta failed: " + err.message);
+                                                } finally {
+                                                    setIsUploadingImage(false);
+                                                }
+                                            }}
+                                            style={{ marginTop: '0.5rem' }}
+                                        />
+                                        {isUploadingImage && <div style={{ fontSize: '0.75rem', color: '#6366f1', marginTop: '0.5rem', fontWeight: '700' }}>Uploading image to Meta WhatsApp...</div>}
+                                        {headerImageFile && (
+                                            <img src={URL.createObjectURL(headerImageFile)} alt="Header Preview" style={{ marginTop: '1rem', maxWidth: '200px', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         ) : (
                             /* Free-text for non-Meta modes */
@@ -715,11 +778,11 @@ export default function MarketingHub() {
                         {/* Blast Button */}
                         <button
                             onClick={handleSendBulk}
-                            disabled={filteredCustomers.length === 0 || isSending}
+                            disabled={filteredCustomers.length === 0 || isSending || isUploadingImage || (isMetaMode && metaParams.some(p => p.type === 'image') && !headerMediaId)}
                             style={{
                                 width: '100%',
                                 padding: '1rem',
-                                background: filteredCustomers.length === 0 || isSending ? '#94a3b8' : 'linear-gradient(135deg, #10b981, #059669)',
+                                background: (filteredCustomers.length === 0 || isSending || isUploadingImage || (isMetaMode && metaParams.some(p => p.type === 'image') && !headerMediaId)) ? '#94a3b8' : 'linear-gradient(135deg, #10b981, #059669)',
                                 color: 'white',
                                 border: 'none',
                                 borderRadius: '10px',

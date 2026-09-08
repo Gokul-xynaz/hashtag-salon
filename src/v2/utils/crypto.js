@@ -1,7 +1,7 @@
 // Simple but robust key-based stream cipher (XOR-hex with key rotation)
 // Uses the Firebase API Key as a fallback/default key to ensure that even if the 
 // database gets leaked via lax Firestore rules, credentials cannot be read without the client app config.
-const SECRET_KEY = import.meta.env.VITE_ENCRYPTION_KEY || import.meta.env.VITE_FIREBASE_API_KEY || 'fallback-encryption-key-for-stream-cipher';
+const SECRET_KEY = import.meta.env.VITE_FIREBASE_API_KEY;
 
 /**
  * Encrypts cleartext into a secure base64-hex string.
