@@ -342,7 +342,7 @@ export default function MarketingHub() {
                         setProgressLogs(prev => [...prev, `[DEBUG] FULL ERROR: ${JSON.stringify(data.error)}`]);
                         throw new Error(`[${res.status}] ${data.error.message || 'Meta API Error'}`);
                     }
-                    setProgressLogs(prev => [...prev, `✅ Sent template "${metaTemplateName}" to ${name}`]);
+                    setProgressLogs(prev => [...prev, `✅ API_ACCEPTED: "${metaTemplateName}" accepted by WhatsApp for ${name} (Delivery Unknown)`]);
                     await delay(500);
                 } else if (mode === 'webhook') {
                     const msg = messageText.replace(/{{name}}/g, name);
