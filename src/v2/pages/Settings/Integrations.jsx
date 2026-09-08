@@ -122,7 +122,7 @@ export default function IntegrationsSettings() {
                         decryptedAccessToken = decrypt(data.metaAccessToken);
                         data.metaAccessToken = decryptedAccessToken;
                     }
-                    if (data.ultramsgToken) data.ultramsgToken = decrypt(data.ultramsgToken);
+                    if (data.ultramsgToken) data.ultramsgToken = decrypt(data.ultramsgToken) || '';
                     setConfig(prev => ({ ...prev, ...data }));
 
                     if (data.whatsappMode === 'meta' && data.metaWabaId && decryptedAccessToken) {

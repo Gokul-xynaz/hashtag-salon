@@ -59,8 +59,8 @@ export default function MarketingHub() {
                 const snap = await getDoc(doc(db, 'settings', 'integrations'));
                 if (snap.exists()) {
                     const data = snap.data();
-                    if (data.metaAccessToken) data.metaAccessToken = decrypt(data.metaAccessToken);
-                    if (data.ultramsgToken) data.ultramsgToken = decrypt(data.ultramsgToken);
+                    if (data.metaAccessToken) data.metaAccessToken = decrypt(data.metaAccessToken) || '';
+                    if (data.ultramsgToken) data.ultramsgToken = decrypt(data.ultramsgToken) || '';
                     setGateway(data);
                 }
             } catch (e) { console.error(e); }
@@ -78,7 +78,7 @@ export default function MarketingHub() {
         const tok = activeGw.metaAccessToken;
         let wabaId = activeGw.metaWabaId;
         if (!tok) {
-            setTemplateError('Access Token is not configured.');
+            setTemplateError('WhatsApp access token needs to be saved again in Integrations.');
             return;
         }
 
@@ -290,6 +290,7 @@ export default function MarketingHub() {
     const handleSendBulk = async () => {
         if (filteredCustomers.length === 0) return alert('No customers match this filter!');
         if (isMetaMode && !metaTemplateName.trim()) return alert('Please enter a Meta template name.');
+        if (isMetaMode && !gateway.metaAccessToken) return alert('WhatsApp access token needs to be saved again in Integrations.');
         if (!gateway) return alert('Gateway not configured. Go to Settings → Integrations first.');
         if (!window.confirm(`Send to ${filteredCustomers.length} customers via ${GATEWAY_LABELS[mode]?.label}?`)) return;
 
@@ -627,6 +628,10 @@ export default function MarketingHub() {
                                                     const formData = new FormData();
                                                     formData.append('messaging_product', 'whatsapp');
                                                     formData.append('file', file);
+                                                    
+                                                    if (!gateway.metaAccessToken) {
+                                                        throw new Error('WhatsApp access token needs to be saved again in Integrations.');
+                                                    }
                                                     
                                                     const phoneNumberId = gateway.metaPhoneNumberId || '1183269708198647';
                                                     const response = await fetch(`https://graph.facebook.com/v22.0/${phoneNumberId}/media`, {
